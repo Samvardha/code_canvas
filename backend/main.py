@@ -6,15 +6,12 @@ from firebase_admin import credentials, auth
 import os
 
 # ─── Firebase Admin SDK Init ───────────────────────────────────────
-# Option 1: Service account JSON file (set GOOGLE_APPLICATION_CREDENTIALS env var)
-# Option 2: Place a 'serviceAccountKey.json' in this directory
 cred_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "serviceAccountKey.json")
 
 if os.path.exists(cred_path):
     cred = credentials.Certificate(cred_path)
     firebase_admin.initialize_app(cred)
 else:
-    # Falls back to Application Default Credentials (works on GCP)
     firebase_admin.initialize_app()
 
 # ─── FastAPI App ───────────────────────────────────────────────────
@@ -22,7 +19,7 @@ app = FastAPI(title="Code Canvas API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tighten this in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
