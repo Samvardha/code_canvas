@@ -11,8 +11,7 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 
 interface AuthContextType {
     user: User | null;
@@ -31,35 +30,33 @@ export const useAuth = () => useContext(AuthContext);
 
 const googleProvider = new GoogleAuthProvider();
 const githubProvider = new GithubAuthProvider();
+// Force GitHub to prompt for account selection instead of auto-logging in
+githubProvider.setCustomParameters({
+    prompt: "select_account"
+});
 
-async function storeUserInFirestore(user: User) {
-    await setDoc(
-        doc(db, "users", user.uid),
-        {
-            uid: user.uid,
-            email: user.email,
-        },
-        { merge: true }
-    );
-}
-
-async function verifyTokenWithBackend(user: User): Promise<string | null> {
+async function syncBackendSession(user: User, providerId: string, githubAccessToken?: string): Promise<string | null> {
     try {
-        const token = await user.getIdToken();
-        const backendUrl =
-            process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-        const res = await fetch(`${backendUrl}/verify-token`, {
+        const idToken = await user.getIdToken();
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+        const res = await fetch(`${backendUrl}/auth/session`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token }),
+            body: JSON.stringify({
+                id_token: idToken,
+                provider_id: providerId,
+                github_access_token: githubAccessToken || null
+            }),
         });
+
         if (res.ok) {
             const data = await res.json();
             return data.uid;
         }
         return null;
     } catch {
-        console.error("Backend verification failed");
+        console.error("Backend sync failed");
         return null;
     }
 }
@@ -72,9 +69,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             setUser(firebaseUser);
+            // the initial load sync (no github token available here, but keeps basic auth alive)
             if (firebaseUser) {
-                await storeUserInFirestore(firebaseUser);
-                const uid = await verifyTokenWithBackend(firebaseUser);
+                const providerId = firebaseUser.providerData[0]?.providerId || "unknown";
+                const uid = await syncBackendSession(firebaseUser, providerId);
                 setBackendUid(uid);
             } else {
                 setBackendUid(null);
@@ -85,19 +83,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const signInWithGoogle = async () => {
-        await signInWithPopup(auth, googleProvider);
+        const result = await signInWithPopup(auth, googleProvider);
+        await syncBackendSession(result.user, "google.com");
     };
 
     const signInWithGitHub = async () => {
-        await signInWithPopup(auth, githubProvider);
+        const result = await signInWithPopup(auth, githubProvider);
+        const credential = GithubAuthProvider.credentialFromResult(result);
+        const githubAccessToken = credential?.accessToken;
+        await syncBackendSession(result.user, "github.com", githubAccessToken);
     };
 
     const signUpWithEmail = async (email: string, password: string) => {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+        await syncBackendSession(result.user, "password");
     };
 
     const signInWithEmail = async (email: string, password: string) => {
-        await signInWithEmailAndPassword(auth, email, password);
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        await syncBackendSession(result.user, "password");
     };
 
     const logout = async () => {

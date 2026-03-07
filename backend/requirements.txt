@@ -1,3 +1,7 @@
 fastapi
 uvicorn[standard]
 firebase-admin
+motor
+httpx
+cryptography
+python-dotenv

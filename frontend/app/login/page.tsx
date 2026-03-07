@@ -43,6 +43,7 @@ export default function LoginPage() {
         try {
             await signInWithGoogle();
         } catch (err: unknown) {
+            console.error("Google Sign-in Error:", err);
             const errorMessage = err instanceof Error ? err.message : "Google sign-in failed";
             setError(errorMessage.replace("Firebase: ", "").replace(/\(auth\/.*\)/, "").trim());
         }
@@ -53,6 +54,7 @@ export default function LoginPage() {
         try {
             await signInWithGitHub();
         } catch (err: unknown) {
+            console.error("GitHub Sign-in Error:", err);
             const errorMessage = err instanceof Error ? err.message : "GitHub sign-in failed";
             setError(errorMessage.replace("Firebase: ", "").replace(/\(auth\/.*\)/, "").trim());
         }
