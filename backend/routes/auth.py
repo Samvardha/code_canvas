@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from firebase_admin import auth
 
@@ -6,6 +8,8 @@ from services.github import sync_github_profile
 from utils.security import encrypt_token
 from utils.database import get_users_collection
 from utils.auth import get_current_uid
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -20,7 +24,16 @@ async def create_session(request: SessionRequest, background_tasks: BackgroundTa
         decoded_token = auth.verify_id_token(request.id_token)
         uid = decoded_token["uid"]
         email = decoded_token.get("email", "")
-        enc_token = encrypt_token(request.github_access_token) if request.github_access_token else ""
+        logger.info(
+            "✅ Creating session for uid=%s via provider_id=%s",
+            uid,
+            request.provider_id,
+        )
+        enc_token = (
+            encrypt_token(request.github_access_token)
+            if request.github_access_token
+            else ""
+        )
 
         background_tasks.add_task(
             sync_github_profile,
@@ -28,17 +41,23 @@ async def create_session(request: SessionRequest, background_tasks: BackgroundTa
             email=email,
             provider_id=request.provider_id,
             encrypted_token=enc_token,
-            plain_token=request.github_access_token or ""
+            plain_token=request.github_access_token or "",
         )
 
-        return SessionResponse(uid=uid, status="Session active, data sync in progress")
+        return SessionResponse(
+            uid=uid,
+            status="Session active, data sync in progress",
+        )
 
     except auth.InvalidIdTokenError:
+        logger.info("❌ Invalid ID token when creating session")
         raise HTTPException(status_code=401, detail="Invalid ID token")
     except auth.ExpiredIdTokenError:
+        logger.info("⏳ Expired ID token when creating session")
         raise HTTPException(status_code=401, detail="Expired ID token")
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Token verification failed: {str(e)}")
+    except Exception:
+        logger.exception("🚨 Unexpected error verifying ID token when creating session")
+        raise HTTPException(status_code=401, detail="Token verification failed")
 
 
 @router.get("/users/me")

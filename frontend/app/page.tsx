@@ -45,7 +45,7 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4 w-full mx-auto">
               <Link
-                href="/signup"
+                href="/login"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-white text-black px-8 py-4 text-sm font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors duration-300 border-2 border-black"
               >
                 CREATE ACCOUNT

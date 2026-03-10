@@ -1,4 +1,6 @@
 import os
+import logging
+
 import firebase_admin
 from firebase_admin import credentials
 from fastapi import FastAPI
@@ -9,6 +11,11 @@ from routes.auth import router as auth_router
 from routes.health import router as health_router
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+)
 
 # ─── Firebase Admin SDK Init ───────────────────────────────────────
 cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "serviceAccountKey.json")

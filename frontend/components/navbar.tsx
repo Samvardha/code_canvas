@@ -48,7 +48,7 @@ export default function Navbar() {
             Login
           </Link>
           <Link
-            href="/signup"
+            href="/login"
             className="flex items-center justify-center px-6 py-2.5 bg-white text-black text-xs font-bold uppercase tracking-widest hover:bg-accent transition-colors duration-300"
           >
             Sign Up

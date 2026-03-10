@@ -73,7 +73,7 @@ export default function Hero() {
               className="flex flex-col sm:flex-row gap-4"
             >
               <Link
-                href="/signup"
+                href="/login"
                 className="group flex items-center justify-center gap-4 px-8 py-4 bg-accent text-black font-bold uppercase tracking-widest text-sm hover:bg-white transition-colors duration-300 w-full sm:w-auto leading-none"
               >
                 Sign Up
