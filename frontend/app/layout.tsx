@@ -19,7 +19,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Code Canvas - Developer Network",
+  title: "Tech Connect - Developer Network",
   description:
     "A developer collaboration network where you can find collaborators, share projects, and build together.",
 };

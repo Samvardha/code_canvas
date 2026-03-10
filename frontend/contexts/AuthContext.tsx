@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+} from "react";
 import {
   User,
   onAuthStateChanged,
@@ -10,6 +16,8 @@ import {
   GithubAuthProvider,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  getAdditionalUserInfo,
+  linkWithPopup,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
@@ -21,7 +29,9 @@ interface AuthContextType {
   signInWithGitHub: () => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<User>;
   signInWithEmail: (email: string, password: string) => Promise<User>;
+  linkGitHub: () => Promise<void>;
   logout: () => Promise<void>;
+  fetchGitHubProfile: () => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -30,7 +40,6 @@ export const useAuth = () => useContext(AuthContext);
 
 const googleProvider = new GoogleAuthProvider();
 const githubProvider = new GithubAuthProvider();
-// Force GitHub to prompt for account selection instead of auto-logging in
 githubProvider.setCustomParameters({
   prompt: "select_account",
 });
@@ -39,11 +48,15 @@ async function syncBackendSession(
   user: User,
   providerId: string,
   githubAccessToken?: string,
+  profileEmail?: string,
 ): Promise<string | null> {
   try {
     const idToken = await user.getIdToken();
     const backendUrl =
       process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+    const resolvedEmail =
+      user.email || user.providerData?.[0]?.email || profileEmail || null;
 
     const res = await fetch(`${backendUrl}/auth/session`, {
       method: "POST",
@@ -52,6 +65,7 @@ async function syncBackendSession(
         id_token: idToken,
         provider_id: providerId,
         github_access_token: githubAccessToken || null,
+        email: resolvedEmail,
       }),
     });
 
@@ -70,17 +84,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [backendUid, setBackendUid] = useState<string | null>(null);
+  const signingInRef = useRef(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
-      // the initial load sync (no github token available here, but keeps basic auth alive)
-      if (firebaseUser) {
+      if (firebaseUser && !signingInRef.current) {
         const providerId =
           firebaseUser.providerData[0]?.providerId || "unknown";
         const uid = await syncBackendSession(firebaseUser, providerId);
         setBackendUid(uid);
-      } else {
+      } else if (!firebaseUser) {
         setBackendUid(null);
       }
       setLoading(false);
@@ -89,15 +103,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
-    const result = await signInWithPopup(auth, googleProvider);
-    await syncBackendSession(result.user, "google.com");
+    signingInRef.current = true;
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const additionalInfo = getAdditionalUserInfo(result);
+      const profileEmail = (additionalInfo?.profile as Record<string, unknown>)
+        ?.email as string | undefined;
+      const uid = await syncBackendSession(
+        result.user,
+        "google.com",
+        undefined,
+        profileEmail,
+      );
+      setBackendUid(uid);
+    } finally {
+      signingInRef.current = false;
+    }
   };
 
   const signInWithGitHub = async () => {
-    const result = await signInWithPopup(auth, githubProvider);
-    const credential = GithubAuthProvider.credentialFromResult(result);
-    const githubAccessToken = credential?.accessToken;
-    await syncBackendSession(result.user, "github.com", githubAccessToken);
+    signingInRef.current = true;
+    try {
+      const result = await signInWithPopup(auth, githubProvider);
+      const credential = GithubAuthProvider.credentialFromResult(result);
+      const githubAccessToken = credential?.accessToken;
+      const additionalInfo = getAdditionalUserInfo(result);
+      const profileEmail = (additionalInfo?.profile as Record<string, unknown>)
+        ?.email as string | undefined;
+      const uid = await syncBackendSession(
+        result.user,
+        "github.com",
+        githubAccessToken,
+        profileEmail,
+      );
+      setBackendUid(uid);
+    } catch (error: unknown) {
+      const firebaseError = error as { code?: string };
+      if (
+        firebaseError.code === "auth/account-exists-with-different-credential"
+      ) {
+        throw new Error(
+          "An account with this email already exists. Please sign in with Google or Email instead, then link GitHub from your profile.",
+        );
+      }
+      throw error;
+    } finally {
+      signingInRef.current = false;
+    }
   };
 
   const signUpWithEmail = async (email: string, password: string) => {
@@ -117,6 +169,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setBackendUid(null);
   };
 
+  const linkGitHub = async () => {
+    if (!auth.currentUser) return;
+    signingInRef.current = true;
+    try {
+      const result = await linkWithPopup(auth.currentUser, githubProvider);
+      const credential = GithubAuthProvider.credentialFromResult(result);
+      const githubAccessToken = credential?.accessToken;
+      const additionalInfo = getAdditionalUserInfo(result);
+      const profileEmail = (additionalInfo?.profile as Record<string, unknown>)
+        ?.email as string | undefined;
+      const uid = await syncBackendSession(
+        result.user,
+        "github.com",
+        githubAccessToken,
+        profileEmail,
+      );
+      setBackendUid(uid);
+      setUser({ ...result.user } as User);
+    } catch (error) {
+      console.error("Link GitHub error:", error);
+      throw error;
+    } finally {
+      signingInRef.current = false;
+    }
+  };
+
+  const fetchGitHubProfile = async () => {
+    if (!auth.currentUser) return null;
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const backendUrl =
+        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      const res = await fetch(`${backendUrl}/users/me/github`, {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      return null;
+    } catch {
+      console.error("Failed to fetch GitHub profile");
+      return null;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -127,7 +224,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithGitHub,
         signUpWithEmail,
         signInWithEmail,
+        linkGitHub,
         logout,
+        fetchGitHubProfile,
       }}
     >
       {children}

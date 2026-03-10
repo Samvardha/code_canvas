@@ -6,8 +6,8 @@ import CommunityPreview from "@/components/community-preview";
 import OpenProjects from "@/components/open-projects";
 import HowItWorks from "@/components/how-it-works";
 import Footer from "@/components/footer";
-import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/Button";
 
 export default function Home() {
   return (
@@ -44,19 +44,18 @@ export default function Home() {
               fluff, just pure code.
             </p>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4 w-full mx-auto">
-              <Link
-                href="/login"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-white text-black px-8 py-4 text-sm font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors duration-300 border-2 border-black"
-              >
+              <Button href="/login" size="lg" className="border-black hover:bg-black hover:text-white">
                 CREATE ACCOUNT
                 <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link
+              </Button>
+              <Button
                 href="/login"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border-2 border-black text-black px-8 py-4 text-sm font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors duration-300 bg-transparent"
+                size="lg"
+                variant="secondary"
+                className="border-black text-black hover:bg-black hover:text-white bg-transparent"
               >
                 LOGIN
-              </Link>
+              </Button>
             </div>
           </div>
         </section>

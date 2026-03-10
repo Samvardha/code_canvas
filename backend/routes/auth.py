@@ -23,17 +23,28 @@ async def create_session(request: SessionRequest, background_tasks: BackgroundTa
     try:
         decoded_token = auth.verify_id_token(request.id_token)
         uid = decoded_token["uid"]
-        email = decoded_token.get("email", "")
+        email = decoded_token.get("email", "") or request.email or ""
+
+        # Server-side fallback: fetch email from Firebase Admin if token/request didn't have it
+        if not email:
+            try:
+                firebase_user = auth.get_user(uid)
+                email = firebase_user.email or ""
+                if not email and firebase_user.provider_data:
+                    for provider in firebase_user.provider_data:
+                        if provider.email:
+                            email = provider.email
+                            break
+            except Exception:
+                pass
+
         logger.info(
             "✅ Creating session for uid=%s via provider_id=%s",
             uid,
             request.provider_id,
         )
-        enc_token = (
-            encrypt_token(request.github_access_token)
-            if request.github_access_token
-            else ""
-        )
+
+        enc_token = encrypt_token(request.github_access_token) if request.github_access_token else ""
 
         background_tasks.add_task(
             sync_github_profile,
@@ -41,13 +52,10 @@ async def create_session(request: SessionRequest, background_tasks: BackgroundTa
             email=email,
             provider_id=request.provider_id,
             encrypted_token=enc_token,
-            plain_token=request.github_access_token or "",
+            plain_token=request.github_access_token or ""
         )
 
-        return SessionResponse(
-            uid=uid,
-            status="Session active, data sync in progress",
-        )
+        return SessionResponse(uid=uid, status="Session active, data sync in progress")
 
     except auth.InvalidIdTokenError:
         logger.info("❌ Invalid ID token when creating session")
@@ -70,3 +78,27 @@ async def get_current_user_profile(uid: str = Depends(get_current_uid)):
 
     user_doc.pop("github_access_token", None)
     return user_doc
+
+
+@router.get("/users/me/github")
+async def get_github_profile(uid: str = Depends(get_current_uid)):
+    """Returns the stored GitHub profile data for the authenticated user."""
+    collection = await get_users_collection()
+    user_doc = await collection.find_one({"_id": uid}, {"github": 1, "linked_providers": 1})
+
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    github_data = user_doc.get("github")
+    if not github_data:
+        return {
+            "connected": False,
+            "github": None,
+            "linked_providers": user_doc.get("linked_providers", []),
+        }
+
+    return {
+        "connected": True,
+        "github": github_data,
+        "linked_providers": user_doc.get("linked_providers", []),
+    }

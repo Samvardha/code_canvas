@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import Link from "next/link";
+import { Button } from "@/components/Button";
 
 export default function Hero() {
   const container = {
@@ -72,13 +72,15 @@ export default function Hero() {
               variants={item}
               className="flex flex-col sm:flex-row gap-4"
             >
-              <Link
+              <Button
                 href="/login"
-                className="group flex items-center justify-center gap-4 px-8 py-4 bg-accent text-black font-bold uppercase tracking-widest text-sm hover:bg-white transition-colors duration-300 w-full sm:w-auto leading-none"
+                size="lg"
+                variant="primary"
+                className="group bg-accent text-black hover:bg-white w-full sm:w-auto leading-none"
               >
                 Sign Up
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
+              </Button>
             </motion.div>
           </motion.div>
 
