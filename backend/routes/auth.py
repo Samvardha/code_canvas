@@ -1,31 +1,34 @@
 import logging
-
+from pymongo.errors import DuplicateKeyError
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from firebase_admin import auth
 
 from models.auth import SessionRequest, SessionResponse
-from services.github import sync_github_profile
+from models.user import OnboardingRequest
+from services.user import UserService
+from services.github import GitHubService
 from utils.security import encrypt_token
-from utils.database import get_users_collection
 from utils.auth import get_current_uid
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
-@router.post("/auth/session", response_model=SessionResponse)
+@router.post("/session", response_model=SessionResponse)
 async def create_session(request: SessionRequest, background_tasks: BackgroundTasks):
     """
-    Verifies the Firebase ID token and triggers a background sync of the
-    user's GitHub profile to MongoDB if applicable.
+    Create or update user session after Firebase authentication.
+    
+    Verifies the Firebase ID token and provisions/updates the user in the database.
+    For Google provider, extracts profile data (name, avatar, location).
     """
     try:
         decoded_token = auth.verify_id_token(request.id_token)
         uid = decoded_token["uid"]
         email = decoded_token.get("email", "") or request.email or ""
 
-        # Server-side fallback: fetch email from Firebase Admin if token/request didn't have it
+        # Fallback: fetch email from Firebase Admin if not available
         if not email:
             try:
                 firebase_user = auth.get_user(uid)
@@ -35,70 +38,82 @@ async def create_session(request: SessionRequest, background_tasks: BackgroundTa
                         if provider.email:
                             email = provider.email
                             break
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to fetch email from Firebase", exc_info=True)
 
         logger.info(
-            "✅ Creating session for uid=%s via provider_id=%s",
-            uid,
-            request.provider_id,
+            "Session creation initiated",
+            extra={"uid": uid, "provider": request.provider_id},
         )
 
-        enc_token = encrypt_token(request.github_access_token) if request.github_access_token else ""
+        # Encrypt GitHub token if provided
+        encrypted_token = None
+        if request.github_access_token:
+            encrypted_token = encrypt_token(request.github_access_token)
 
+        # Extract provider-specific data
+        provider_data = None
+        if request.provider_id == "google.com":
+            provider_data = UserService._extract_google_profile_data(decoded_token)
+        elif request.provider_id == "github.com" and request.github_access_token:
+            # Extract GitHub username
+            github_username = await GitHubService.extract_github_username(request.github_access_token)
+            provider_data = {"username": github_username}
+
+        # Provision user in background
         background_tasks.add_task(
-            sync_github_profile,
+            UserService.provision_user_on_auth,
             uid=uid,
             email=email,
             provider_id=request.provider_id,
-            encrypted_token=enc_token,
-            plain_token=request.github_access_token or ""
+            encrypted_token=encrypted_token,
+            provider_data=provider_data,
         )
 
-        return SessionResponse(uid=uid, status="Session active, data sync in progress")
+        return SessionResponse(uid=uid, status="Session created successfully")
 
     except auth.InvalidIdTokenError:
-        logger.info("❌ Invalid ID token when creating session")
+        logger.warning("Invalid ID token provided", extra={"provider": request.provider_id})
         raise HTTPException(status_code=401, detail="Invalid ID token")
+
     except auth.ExpiredIdTokenError:
-        logger.info("⏳ Expired ID token when creating session")
+        logger.warning("Expired ID token provided", extra={"provider": request.provider_id})
         raise HTTPException(status_code=401, detail="Expired ID token")
-    except Exception:
-        logger.exception("🚨 Unexpected error verifying ID token when creating session")
-        raise HTTPException(status_code=401, detail="Token verification failed")
+
+    except Exception as e:
+        logger.error("Session creation failed", exc_info=True)
+        raise HTTPException(status_code=500, detail="Session creation failed")
 
 
-@router.get("/users/me")
-async def get_current_user_profile(uid: str = Depends(get_current_uid)):
-    """Fetches the authenticated user's profile from MongoDB."""
-    collection = await get_users_collection()
-    user_doc = await collection.find_one({"_id": uid})
-    if not user_doc:
-        raise HTTPException(status_code=404, detail="User profile not found")
+@router.post("/onboarding")
+async def complete_onboarding(
+    onboarding_data: OnboardingRequest,
+    uid: str = Depends(get_current_uid),
+):
+    """
+    Complete user onboarding after email/password signup.
+    
+    Collects and stores user profile information (name, username, bio, location, skills).
+    """
+    try:
+        logger.info(
+            "Onboarding initiated",
+            extra={"uid": uid, "username": onboarding_data.username},
+        )
 
-    user_doc.pop("github_access_token", None)
-    return user_doc
+        await UserService.complete_user_onboarding(
+            uid=uid,
+            onboarding_data=onboarding_data.dict(),
+        )
 
-
-@router.get("/users/me/github")
-async def get_github_profile(uid: str = Depends(get_current_uid)):
-    """Returns the stored GitHub profile data for the authenticated user."""
-    collection = await get_users_collection()
-    user_doc = await collection.find_one({"_id": uid}, {"github": 1, "linked_providers": 1})
-
-    if not user_doc:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    github_data = user_doc.get("github")
-    if not github_data:
         return {
-            "connected": False,
-            "github": None,
-            "linked_providers": user_doc.get("linked_providers", []),
+            "status": "success",
+            "message": "Onboarding completed successfully",
         }
 
-    return {
-        "connected": True,
-        "github": github_data,
-        "linked_providers": user_doc.get("linked_providers", []),
-    }
+    except DuplicateKeyError:
+        logger.warning("Onboarding failed: duplicate username", extra={"uid": uid, "username": onboarding_data.username})
+        raise HTTPException(status_code=400, detail="USERNAME_ALREADY_TAKEN")
+    except Exception as e:
+        logger.error("Onboarding failed", exc_info=True, extra={"uid": uid})
+        raise HTTPException(status_code=500, detail="Onboarding failed")

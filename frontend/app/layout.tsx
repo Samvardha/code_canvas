@@ -24,6 +24,8 @@ export const metadata: Metadata = {
     "A developer collaboration network where you can find collaborators, share projects, and build together.",
 };
 
+import { NavbarWrapper } from "@/components/NavbarWrapper";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,7 +36,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased bg-background text-foreground font-sans min-h-screen selection:bg-accent selection:text-black`}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <NavbarWrapper>{children}</NavbarWrapper>
+        </AuthProvider>
       </body>
     </html>
   );

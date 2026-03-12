@@ -27,7 +27,7 @@ type ButtonAsLink = BaseButtonProps &
 export type ButtonProps = ButtonAsButton | ButtonAsLink;
 
 const baseClasses =
-  "inline-flex items-center justify-center gap-3 text-sm font-bold uppercase tracking-widest transition-colors duration-300 border-2 focus:outline-none focus-visible:outline-none cursor-pointer";
+  "inline-flex items-center justify-center gap-3 text-sm font-bold uppercase tracking-widest transition-colors duration-300 border-2 focus:outline-none focus-visible:outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none";
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:

@@ -20,7 +20,7 @@ This is a monorepo containing two main services:
 ```text
 code_canvas/
 ├── frontend/             # Next.js Application
-│   ├── app/              # App router (login, dashboard, layout)
+│   ├── app/              # App router (login, profile, layout)
 │   ├── contexts/         # React Contexts (AuthContext)
 │   ├── lib/              # Firebase initialization
 │   └── public/           # Static assets

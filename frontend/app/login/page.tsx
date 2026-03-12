@@ -26,6 +26,7 @@ export default function LoginPage() {
   const {
     user,
     loading,
+    profileComplete,
     logout,
     signInWithGoogle,
     signInWithEmail,
@@ -100,11 +101,13 @@ export default function LoginPage() {
       );
       if (isPasswordAuth && !user.emailVerified) {
         setVerificationPending(true);
+      } else if (!profileComplete) {
+        router.push("/onboarding");
       } else {
-        router.push("/dashboard");
+        router.push("/feed");
       }
     }
-  }, [user, loading, router]);
+  }, [user, loading, profileComplete, router]);
 
   const handleEmailCheck = async () => {
     if (!isEmailValid) return;
@@ -255,7 +258,7 @@ export default function LoginPage() {
               try {
                 await user?.reload();
                 if (user?.emailVerified) {
-                  router.push("/dashboard");
+                  router.push("/feed");
                 } else {
                   setError(
                     "EMAIL NOT VERIFIED YET — CHECK YOUR INBOX AND CLICK THE VERIFICATION LINK",

@@ -8,16 +8,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from routes.auth import router as auth_router
+from routes.users import router as users_router
 from routes.health import router as health_router
 
 load_dotenv()
 
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
 )
 
-# ─── Firebase Admin SDK Init ───────────────────────────────────────
+logger = logging.getLogger(__name__)
+
+# ─── Firebase Admin SDK Initialization ─────────────────────────────
 cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "serviceAccountKey.json")
 if os.path.exists(cred_path):
     cred = credentials.Certificate(cred_path)
@@ -25,9 +29,21 @@ if os.path.exists(cred_path):
 else:
     firebase_admin.initialize_app()
 
-# ─── FastAPI App ───────────────────────────────────────────────────
-app = FastAPI(title="Code Canvas API", version="1.0.0")
+logger.info("Firebase Admin SDK initialized")
 
+# ─── FastAPI Application Setup ────────────────────────────────────
+app = FastAPI(
+    title="Code Canvas API",
+    version="1.0.0",
+    description="Backend API for Code Canvas platform",
+)
+
+@app.on_event("startup")
+async def startup_event():
+    from utils.database import ensure_indexes
+    await ensure_indexes()
+
+# ─── CORS Middleware ──────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,6 +52,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── Register Routers ─────────────────────────────────────────────
+# ─── Route Registration ────────────────────────────────────────────
 app.include_router(auth_router)
+app.include_router(users_router)
 app.include_router(health_router)
+
+logger.info("All routes registered successfully")

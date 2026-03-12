@@ -25,6 +25,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   backendUid: string | null;
+  profileComplete: boolean;
+  userProfile: any | null;
   signInWithGoogle: () => Promise<void>;
   signInWithGitHub: () => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<User>;
@@ -32,6 +34,8 @@ interface AuthContextType {
   linkGitHub: () => Promise<void>;
   logout: () => Promise<void>;
   fetchGitHubProfile: () => Promise<any>;
+  fetchUserProfile: () => Promise<any>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -84,25 +88,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [backendUid, setBackendUid] = useState<string | null>(null);
+  const [profileComplete, setProfileComplete] = useState<boolean>(false);
+  const [userProfile, setUserProfile] = useState<any | null>(null);
   const signingInRef = useRef(false);
+
+  const fetchUserProfile = React.useCallback(async () => {
+    if (!auth.currentUser) return null;
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const backendUrl =
+        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      const res = await fetch(`${backendUrl}/users/me`, {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserProfile(data);
+        setProfileComplete(data.profile_complete || false);
+        return data;
+      }
+      return null;
+    } catch {
+      console.error("Failed to fetch user profile");
+      return null;
+    }
+  }, []);
+
+  const refreshProfile = React.useCallback(async () => {
+    await fetchUserProfile();
+  }, [fetchUserProfile]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Always update Firebase user state
       setUser(firebaseUser);
-      if (firebaseUser && !signingInRef.current) {
-        const providerId =
-          firebaseUser.providerData[0]?.providerId || "unknown";
+      
+      if (firebaseUser) {
+        if (signingInRef.current) {
+          // Manual sign-in flow handles its own setLoading(false)
+          return;
+        }
+
+        const providerId = firebaseUser.providerData[0]?.providerId || "unknown";
         const uid = await syncBackendSession(firebaseUser, providerId);
         setBackendUid(uid);
-      } else if (!firebaseUser) {
+        if (uid) {
+          await fetchUserProfile();
+        }
+      } else {
         setBackendUid(null);
+        setUserProfile(null);
+        setProfileComplete(false);
       }
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [fetchUserProfile]);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = React.useCallback(async () => {
     signingInRef.current = true;
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -116,12 +159,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profileEmail,
       );
       setBackendUid(uid);
+      if (uid) {
+        await fetchUserProfile();
+      }
     } finally {
-      signingInRef.current = false;
+      setLoading(false);
+      // Small delay to ensure onAuthStateChanged sees the ref before it turns false
+      setTimeout(() => {
+        signingInRef.current = false;
+      }, 500);
     }
-  };
+  }, [fetchUserProfile]);
 
-  const signInWithGitHub = async () => {
+  const signInWithGitHub = React.useCallback(async () => {
     signingInRef.current = true;
     try {
       const result = await signInWithPopup(auth, githubProvider);
@@ -137,6 +187,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profileEmail,
       );
       setBackendUid(uid);
+      if (uid) {
+        await fetchUserProfile();
+      }
     } catch (error: unknown) {
       const firebaseError = error as { code?: string };
       if (
@@ -148,28 +201,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       throw error;
     } finally {
-      signingInRef.current = false;
+      setLoading(false);
+      setTimeout(() => {
+        signingInRef.current = false;
+      }, 500);
     }
-  };
+  }, [fetchUserProfile]);
 
-  const signUpWithEmail = async (email: string, password: string) => {
-    const result = await createUserWithEmailAndPassword(auth, email, password);
-    await syncBackendSession(result.user, "password");
-    return result.user;
-  };
+  const signUpWithEmail = React.useCallback(async (email: string, password: string) => {
+    signingInRef.current = true;
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = await syncBackendSession(result.user, "password");
+      setBackendUid(uid);
+      if (uid) {
+        await fetchUserProfile();
+      }
+      return result.user;
+    } finally {
+      setLoading(false);
+      setTimeout(() => {
+        signingInRef.current = false;
+      }, 500);
+    }
+  }, [fetchUserProfile]);
 
-  const signInWithEmail = async (email: string, password: string) => {
-    const result = await signInWithEmailAndPassword(auth, email, password);
-    await syncBackendSession(result.user, "password");
-    return result.user;
-  };
+  const signInWithEmail = React.useCallback(async (email: string, password: string) => {
+    signingInRef.current = true;
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const uid = await syncBackendSession(result.user, "password");
+      setBackendUid(uid);
+      if (uid) {
+        await fetchUserProfile();
+      }
+      return result.user;
+    } finally {
+      setLoading(false);
+      setTimeout(() => {
+        signingInRef.current = false;
+      }, 500);
+    }
+  }, [fetchUserProfile]);
 
-  const logout = async () => {
+  const logout = React.useCallback(async () => {
     await signOut(auth);
     setBackendUid(null);
-  };
+    setUserProfile(null);
+    setProfileComplete(false);
+  }, []);
 
-  const linkGitHub = async () => {
+  const linkGitHub = React.useCallback(async () => {
     if (!auth.currentUser) return;
     signingInRef.current = true;
     try {
@@ -186,16 +268,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profileEmail,
       );
       setBackendUid(uid);
+      if (uid) {
+        await fetchUserProfile();
+      }
       setUser({ ...result.user } as User);
     } catch (error) {
       console.error("Link GitHub error:", error);
       throw error;
     } finally {
-      signingInRef.current = false;
+      setLoading(false);
+      setTimeout(() => {
+        signingInRef.current = false;
+      }, 500);
     }
-  };
+  }, [fetchUserProfile]);
 
-  const fetchGitHubProfile = async () => {
+  const fetchGitHubProfile = React.useCallback(async () => {
     if (!auth.currentUser) return null;
     try {
       const idToken = await auth.currentUser.getIdToken();
@@ -212,7 +300,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to fetch GitHub profile");
       return null;
     }
-  };
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -220,6 +308,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         backendUid,
+        profileComplete,
+        userProfile,
         signInWithGoogle,
         signInWithGitHub,
         signUpWithEmail,
@@ -227,6 +317,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         linkGitHub,
         logout,
         fetchGitHubProfile,
+        fetchUserProfile,
+        refreshProfile,
       }}
     >
       {children}

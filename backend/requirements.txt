@@ -5,3 +5,5 @@ motor
 httpx
 cryptography
 python-dotenv
+cloudinary
+python-multipart
