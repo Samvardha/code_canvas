@@ -1,32 +1,69 @@
-# Code Canvas
+# TechConnect — Developer Community Platform
 
-A creative coding workspace application featuring a Next.js frontend and a FastAPI backend, with a fully integrated Firebase Authentication system.
+A full-stack developer collaboration platform built with **Next.js 16** and **FastAPI**, featuring Firebase Authentication, GitHub integration, user search, and a dark brutalist-tech design system.
+
+---
 
 ## 🚀 Features
 
-- **Modern Tech Stack**: React 19, Next.js 16, Tailwind CSS v4, and FastAPI.
-- **Robust Authentication**: Firebase Auth supporting Google, GitHub, and Email/Password sign-in.
-- **Secure Architecture**: 
-  - Frontend handles client-side auth and stores minimal user data (`{uid, email}`) in Firestore.
-  - Backend securely verifies Firebase ID tokens using the Firebase Admin SDK.
-- **Beautiful UI**: Custom shadcn-style dark glassmorphism design system using pure Tailwind CSS utility classes.
+- **Authentication** — Firebase Auth (Google, GitHub, Email/Password) with secure token verification via the Admin SDK
+- **User Profiles** — Onboarding flow, avatar uploads (Cloudinary), skills, bio, and profile completion tracking
+- **GitHub Integration** — OAuth linking, pinned repos, language stats, activity feed, and identity display
+- **User Search** — Debounced, regex-based search with secure field projection and keyboard shortcut (⌘/Ctrl+K)
+- **Public Profiles** — View any user's profile via `/profile/[username]` dynamic routes
+- **Dark Brutalist UI** — Custom design system with accent borders, monospace typography, and Framer Motion animations
 
 ---
 
 ## 📁 Project Structure
 
-This is a monorepo containing two main services:
-
 ```text
 code_canvas/
-├── frontend/             # Next.js Application
-│   ├── app/              # App router (login, profile, layout)
-│   ├── contexts/         # React Contexts (AuthContext)
-│   ├── lib/              # Firebase initialization
-│   └── public/           # Static assets
-└── backend/              # FastAPI Application
-    ├── main.py           # API endpoints & Token verification
-    └── requirements.txt  # Python dependencies
+├── backend/                    # FastAPI Application
+│   ├── main.py                 # App setup, CORS, route registration
+│   ├── models/
+│   │   ├── auth.py             # Auth request/response models
+│   │   └── user.py             # Profile, Stats, Providers, Settings models
+│   ├── routes/
+│   │   ├── auth.py             # Login, onboarding, session endpoints
+│   │   ├── users.py            # Search, profile, avatar upload endpoints
+│   │   └── health.py           # Health check with DB ping
+│   ├── services/
+│   │   ├── user.py             # User CRUD, profile completion, stats
+│   │   └── github.py           # GitHub API integration & data aggregation
+│   ├── utils/
+│   │   ├── auth.py             # Firebase token verification dependency
+│   │   ├── database.py         # MongoDB connection & indexes
+│   │   ├── security.py         # Fernet encryption for OAuth tokens
+│   │   └── cloudinary_utils.py # Image upload utility
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── .gitignore
+│
+└── frontend/                   # Next.js 16 Application (App Router)
+    ├── app/
+    │   ├── page.tsx            # Landing page
+    │   ├── layout.tsx          # Root layout with fonts & providers
+    │   ├── login/page.tsx      # Auth page (Google, GitHub, Email)
+    │   ├── onboarding/page.tsx # Profile setup flow
+    │   ├── feed/page.tsx       # Main feed with sidebar
+    │   └── profile/
+    │       ├── page.tsx        # Authenticated user's profile
+    │       └── [username]/page.tsx  # Public profile view
+    ├── components/             # Reusable UI components
+    │   ├── TopNavbar.tsx       # Navigation bar with integrated search
+    │   ├── NavbarWrapper.tsx   # Conditional navbar display
+    │   ├── PostCard.tsx        # Feed post component
+    │   └── ...                 # Landing page sections
+    ├── contexts/
+    │   └── AuthContext.tsx     # Firebase auth state & backend sync
+    ├── lib/
+    │   ├── firebase.ts         # Firebase client initialization
+    │   ├── messages.ts         # Auth error message mapping
+    │   └── api/users.ts        # User search API utility
+    ├── package.json
+    ├── .env.example
+    └── .gitignore
 ```
 
 ---
@@ -34,74 +71,99 @@ code_canvas/
 ## 🛠️ Setup & Installation
 
 ### Prerequisites
-- Node.js (v20+)
-- Python (v3.10+)
-- A Firebase Project (with Firestore enabled)
+- **Node.js** v20+
+- **Python** v3.10+
+- A **Firebase** project (Auth enabled with Google & GitHub providers)
+- A **MongoDB Atlas** cluster
+- A **Cloudinary** account (for avatar uploads)
 
-### 1. Frontend Setup
-```bash
-cd frontend
-npm install
-```
+### 1. Backend
 
-**Environment Variables:**
-Copy the template file to create your local config:
-```bash
-cp .env.example .env.local
-```
-Fill in `.env.local` with your Firebase Project settings (found in Firebase Console → Project Settings).
-
-### 2. Backend Setup
 ```bash
 cd backend
 python -m venv venv
 
 # Activate virtual environment
-# On Windows:
+# Windows:
 .\venv\Scripts\activate
-# On Mac/Linux:
+# Mac/Linux:
 source venv/bin/activate
 
 pip install -r requirements.txt
 ```
 
+**Environment:**
+```bash
+cp .env.example .env
+```
+Fill in `.env` with your MongoDB URI, Fernet encryption key, and Cloudinary credentials.
+
 **Firebase Admin SDK:**
-1. Generate a new private key from Firebase Console → Project Settings → Service Accounts.
-2. Download the JSON file, rename it to `serviceAccountKey.json`, and place it in the `backend/` directory.
+1. Go to Firebase Console → Project Settings → Service Accounts
+2. Generate a new private key
+3. Save as `serviceAccountKey.json` in the `backend/` directory
+
+### 2. Frontend
+
+```bash
+cd frontend
+npm install
+```
+
+**Environment:**
+```bash
+cp .env.example .env.local
+```
+Fill in `.env.local` with your Firebase project config (found in Firebase Console → Project Settings → General).
 
 ---
 
-## 🏃‍♂️ Running the Apps
+## 🏃 Running Locally
 
-You will need two terminal windows to run both services simultaneously.
+Open **two terminals**:
 
-**Terminal 1 (Backend):**
+**Terminal 1 — Backend** (http://localhost:8000):
 ```bash
 cd backend
-# Make sure your venv is activated
+# Activate venv first
 uvicorn main:app --reload
-# Runs on http://localhost:8000
 ```
 
-**Terminal 2 (Frontend):**
+**Terminal 2 — Frontend** (http://localhost:3000):
 ```bash
 cd frontend
 npm run dev
-# Runs on http://localhost:3000
 ```
 
 ---
 
 ## 🔐 Authentication Flow
 
-1. User clicks a sign-in button (Google, GitHub, or Email) on the Next.js frontend.
-2. Firebase Authentication handles the secure pop-up or form submission.
-3. Upon success, the frontend writes the user's `email` and `uid` to a Firestore `users/{uid}` document.
-4. The frontend passes the Firebase ID token to the FastAPI backend (`POST /verify-token`).
-5. The backend uses the Firebase Admin SDK to cryptographically verify the token and confirm the user's identity.
+1. User signs in via Google, GitHub, or Email on the frontend
+2. Firebase handles authentication and returns an ID token
+3. Frontend syncs the session with the backend (`POST /auth/session`)
+4. Backend verifies the ID token using the Firebase Admin SDK
+5. A user document is provisioned in MongoDB on first login
+6. Subsequent API requests pass the ID token as a `Bearer` token in the `Authorization` header
 
 ---
 
-## 🛡️ Security Notes
-- **Never commit `.env.local` or `serviceAccountKey.json`.** (These are already protected by the `.gitignore` files).
-- The `frontend/.env.example` file is intentionally committed as a template for other developers.
+## 🛡️ Security
+
+- **Never commit** `.env`, `.env.local`, or `serviceAccountKey.json` — all covered by `.gitignore`
+- GitHub OAuth tokens are **AES-encrypted** (Fernet) before storage in MongoDB
+- User search results exclude sensitive fields (tokens, providers)
+- The `.env.example` files are safe templates for other developers
+
+---
+
+## 📦 Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | Next.js 16, React 19, Tailwind CSS v4, Framer Motion, Lucide Icons |
+| Backend | FastAPI, Motor (async MongoDB), Firebase Admin SDK |
+| Database | MongoDB Atlas |
+| Auth | Firebase Authentication |
+| Storage | Cloudinary (avatars) |
+| Encryption | Fernet (cryptography) |

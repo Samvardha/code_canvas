@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { NavbarWrapper } from "@/components/NavbarWrapper";
 import "./globals.css";
 
 const inter = Inter({
@@ -23,8 +24,6 @@ export const metadata: Metadata = {
   description:
     "A developer collaboration network where you can find collaborators, share projects, and build together.",
 };
-
-import { NavbarWrapper } from "@/components/NavbarWrapper";
 
 export default function RootLayout({
   children,

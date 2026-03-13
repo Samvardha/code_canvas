@@ -12,3 +12,8 @@ Thumbs.db
 .env
 .env.local
 .env.production
+
+# AI tool artifacts
+.gemini/
+.agents/
+.agent/

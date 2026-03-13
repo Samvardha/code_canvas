@@ -58,7 +58,7 @@ class UserService:
             collection = await get_users_collection()
             
             # 1. Prepare fields that ALWAYS get updated
-            set_ops = {
+            set_ops: Dict[str, Any] = {
                 "email": email,
                 "updated_at": datetime.utcnow(),
             }
@@ -275,6 +275,37 @@ class UserService:
                 "Failed to fetch user profile",
                 exc_info=True,
                 extra={"uid": uid},
+            )
+            raise
+
+    @staticmethod
+    async def fetch_user_by_username(username: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch user profile by username with sensitive data redacted.
+        
+        Args:
+            username: The unique handle of the user
+            
+        Returns:
+            User document or None if not found
+        """
+        try:
+            collection = await get_users_collection()
+            user = await collection.find_one({"profile.username": username.lower().strip()})
+
+            if user:
+                UserService._redact_sensitive_fields(user)
+                logger.debug("User profile retrieved by username", extra={"username": username})
+            else:
+                logger.warning("User not found by username", extra={"username": username})
+
+            return user
+
+        except Exception as e:
+            logger.error(
+                "Failed to fetch user profile by username",
+                exc_info=True,
+                extra={"username": username},
             )
             raise
 

@@ -1,5 +1,7 @@
+import re
 import logging
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
+from fastapi.responses import JSONResponse
 from utils.auth import get_current_uid
 from services.user import UserService
 from services.github import GitHubService
@@ -10,6 +12,99 @@ from utils.cloudinary_utils import upload_image
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/search")
+async def search_users(
+    q: str = Query(None),
+    limit: int = Query(10, le=20),
+    current_uid: str = Depends(get_current_uid)
+):
+    """
+    Search for users by username or name.
+    """
+    if q is None or not q.strip():
+        return JSONResponse(
+            status_code=400,
+            content={"error": True, "message": "Search query cannot be empty"}
+        )
+    
+    query_str = q.strip()
+    if len(query_str) < 2:
+        return JSONResponse(
+            status_code=400,
+            content={"error": True, "message": "Search query must be at least 2 characters"}
+        )
+
+    q_escaped = re.escape(query_str)
+    
+    collection = await get_users_collection()
+    
+    # Query: $or on profile.username and profile.name, excluding current user
+    # Note: Using profile.name as "display_name" as per model schema
+    search_filter = {
+        "$and": [
+            {"_id": {"$ne": current_uid}},
+            {
+                "$or": [
+                    {"profile.username": {"$regex": q_escaped, "$options": "i"}},
+                    {"profile.name": {"$regex": q_escaped, "$options": "i"}}
+                ]
+            }
+        ]
+    }
+    
+    # Project specific fields as requested
+    projection = {
+        "_id": 1,
+        "profile.username": 1,
+        "profile.name": 1,
+        "profile.avatar_url": 1,
+        "profile.bio": 1,
+        "profile.skills": 1
+    }
+    
+    cursor = collection.find(search_filter, projection).limit(limit)
+    
+    users = []
+    async for user in cursor:
+        profile = user.get("profile", {})
+        users.append({
+            "firebase_uid": user["_id"],
+            "username": profile.get("username", ""),
+            "display_name": profile.get("name", ""),
+            "avatar_url": profile.get("avatar_url"),
+            "bio": profile.get("bio")
+        })
+        
+    return {
+        "users": users,
+        "count": len(users),
+        "query": query_str
+    }
+
+
+@router.get("/profile/{username}")
+async def get_user_by_username(username: str, uid: str = Depends(get_current_uid)):
+    """
+    Fetch any user's profile by their username.
+    
+    Returns public user profile with sensitive data redacted.
+    """
+    try:
+        user = await UserService.fetch_user_by_username(username)
+
+        if not user:
+            logger.warning("User handle not found", extra={"username": username})
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return user
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to fetch user by handle", exc_info=True, extra={"username": username})
+        raise HTTPException(status_code=500, detail="Failed to fetch user profile")
 
 
 @router.get("/check-username/{username}")

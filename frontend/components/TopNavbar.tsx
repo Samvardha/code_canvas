@@ -12,9 +12,11 @@ import {
   Compass, 
   Users, 
   Calendar,
-  Command
+  Command,
+  Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { searchUsers, User as SearchUser } from "@/lib/api/users";
 
 export function TopNavbar() {
   const { user, userProfile, logout } = useAuth();
@@ -22,21 +24,59 @@ export function TopNavbar() {
   const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const profile = userProfile?.profile;
 
-  // Handle click outside to close dropdown
+  // Handle click outside to close dropdowns
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSearchDropdown(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Search logic with 400ms debounce
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      setIsLoading(false);
+      setShowSearchDropdown(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setSearchError("");
+    setShowSearchDropdown(true);
+
+    const timer = setTimeout(async () => {
+      if (!user) return;
+      try {
+        const idToken = await user.getIdToken();
+        const data = await searchUsers(searchQuery.trim(), idToken);
+        setSearchResults(data.users);
+      } catch (err) {
+        setSearchError("Search failed. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Keyboard shortcut for search (Cmd+K or Ctrl+K)
   useEffect(() => {
@@ -96,26 +136,93 @@ export function TopNavbar() {
         <div className="flex items-center gap-6 flex-1 justify-end">
           
           {/* Search Bar */}
-          <div className="relative w-fit hidden md:block group">
+          <div className="relative w-64 lg:w-96 hidden md:block group" ref={searchContainerRef}>
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-              <Search className="w-4 h-4 text-text-secondary group-focus-within:text-accent transition-colors" />
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 text-accent animate-spin" />
+              ) : (
+                <Search className="w-4 h-4 text-text-secondary group-focus-within:text-accent transition-colors" />
+              )}
             </div>
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search "
+              placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-surface border border-border px-10 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-accent/50 transition-all placeholder:text-text-secondary/50 rounded-none"
+              onFocus={() => searchQuery.trim().length >= 2 && setShowSearchDropdown(true)}
+              className="w-full bg-surface border border-border pl-10 pr-16 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-accent/50 transition-all placeholder:text-text-secondary/50 rounded-none shadow-inner"
             />
             {!searchQuery && (
               <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                <div className="flex items-center gap-1 px-1.5 py-0.5 border border-border bg-background rounded text-[10px] font-mono text-text-secondary">
-                  <Command className="w-3 h-3" /> + 
+                <div className="flex items-center gap-1 px-1.5 py-0.5 border border-border bg-background rounded text-[9px] font-mono text-text-secondary">
+                  <Command className="w-2.5 h-2.5" /> + 
                   <span>K</span>
                 </div>
               </div>
             )}
+
+            {/* Search Results Dropdown */}
+            <AnimatePresence>
+              {showSearchDropdown && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="absolute top-full left-0 w-full mt-2 border border-border bg-background/95 backdrop-blur-xl shadow-2xl z-50 overflow-hidden"
+                >
+                  <div className="p-2 flex flex-col max-h-[400px] overflow-y-auto hide-scrollbar">
+                    {isLoading && searchResults.length === 0 ? (
+                      <div className="p-4 text-center text-[10px] font-mono text-text-secondary uppercase tracking-widest">
+                        Initializing search...
+                      </div>
+                    ) : searchError ? (
+                      <div className="p-4 text-center text-[10px] font-mono text-red-500 uppercase tracking-widest">
+                        {searchError}
+                      </div>
+                    ) : searchResults.length > 0 ? (
+                      searchResults.map((resultUser) => (
+                        <button
+                          key={resultUser.firebase_uid}
+                          onClick={() => {
+                            router.push(`/profile/${resultUser.username}`);
+                            setShowSearchDropdown(false);
+                            setSearchQuery("");
+                          }}
+                          className="w-full flex items-center gap-4 p-3 hover:bg-white/5 transition-colors text-left border-b border-border/50 last:border-none group/item"
+                        >
+                          <div className="w-10 h-10 border border-border bg-background shrink-0 flex items-center justify-center overflow-hidden">
+                            {resultUser.avatar_url ? (
+                              <img src={resultUser.avatar_url} alt={resultUser.username} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xs font-mono text-accent">{resultUser.username[0].toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-bold text-white uppercase truncate group-hover/item:text-accent transition-colors">
+                              {resultUser.username}
+                            </span>
+                            <span className="text-[10px] font-mono text-text-secondary truncate">
+                              {resultUser.display_name || resultUser.bio || "No description"}
+                            </span>
+                          </div>
+                        </button>
+                      ))
+                    ) : !isLoading && (
+                      <div className="p-4 text-center text-[10px] font-mono text-text-secondary uppercase tracking-widest">
+                        No users found for &apos;{searchQuery}&apos;
+                      </div>
+                    )}
+                  </div>
+                  <div className="border-t border-border p-2 bg-background/50">
+                    <div className="flex items-center justify-between text-[8px] font-mono text-text-secondary uppercase tracking-widest px-2">
+                       <span>RESULTS: {searchResults.length}</span>
+                       <span className="text-accent">QUERIED</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Profile Block */}

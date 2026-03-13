@@ -30,6 +30,8 @@ async def ensure_indexes():
             partialFilterExpression={"profile.username": {"$gt": ""}},
             background=True
         )
+        # Added ascending index on profile.name for efficient search
+        await users.create_index("profile.name", background=True)
         print("Successfully ensured database indexes.")
     except Exception as e:
         print(f"Failed to ensure indexes: {e}")
