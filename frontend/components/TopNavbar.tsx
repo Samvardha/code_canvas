@@ -136,7 +136,7 @@ export function TopNavbar() {
         <div className="flex items-center gap-6 flex-1 justify-end">
           
           {/* Search Bar */}
-          <div className="relative w-64 lg:w-96 hidden md:block group" ref={searchContainerRef}>
+          <div className="relative w-64 lg:w-68 hidden md:block group transition-all duration-300" ref={searchContainerRef}>
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
               {isLoading ? (
                 <Loader2 className="w-4 h-4 text-accent animate-spin" />
@@ -147,11 +147,11 @@ export function TopNavbar() {
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search users..."
+              placeholder="Search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => searchQuery.trim().length >= 2 && setShowSearchDropdown(true)}
-              className="w-full bg-surface border border-border pl-10 pr-16 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-accent/50 transition-all placeholder:text-text-secondary/50 rounded-none shadow-inner"
+              className={`w-full bg-surface border border-border pl-10 ${searchQuery ? 'pr-4' : 'pr-16'} py-2.5 text-xs font-mono text-white focus:outline-none focus:border-accent/50 transition-all placeholder:text-text-secondary/50 rounded-none shadow-inner`}
             />
             {!searchQuery && (
               <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">

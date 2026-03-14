@@ -287,7 +287,7 @@ export default function ProfilePage() {
                 )}
                 <button
                   onClick={() => setShowUploadModal(true)}
-                  className="absolute -bottom-1 -right-1 bg-accent text-black p-1.5 hover:bg-white transition-colors border-2 border-black cursor-pointer shadow-lg sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                  className="absolute -bottom-1 -right-1 bg-accent text-black p-1.5 hover:bg-white border-2 border-black cursor-pointer shadow-lg sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </button>

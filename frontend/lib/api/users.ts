@@ -18,9 +18,7 @@ export async function searchUsers(q: string, token: string): Promise<UserSearchR
   const res = await fetch(
     `${baseUrl}/users/search?q=${encodeURIComponent(q)}&limit=10`,
     {
-      method:      "GET",
-      // Using include for credentials to support potential session cookies or same-origin requests
-      credentials: "include", 
+      method:      "GET", 
       headers:     { 
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`
