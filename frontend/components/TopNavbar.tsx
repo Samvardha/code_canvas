@@ -195,7 +195,7 @@ export function TopNavbar() {
                             {resultUser.avatar_url ? (
                               <img src={resultUser.avatar_url} alt={resultUser.username} className="w-full h-full object-cover" />
                             ) : (
-                              <span className="text-xs font-mono text-accent">{resultUser.username[0].toUpperCase()}</span>
+                              <span className="text-xs font-mono text-accent">{(resultUser.username?.[0] || "?").toUpperCase()}</span>
                             )}
                           </div>
                           <div className="flex flex-col min-w-0">

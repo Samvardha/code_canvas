@@ -59,3 +59,16 @@ export function mapAuthError(err: unknown): string {
   return raw.replace(/^Firebase:\s*/i, "").trim();
 }
 
+
+// Connection Messages
+export const CONNECTION_SEND_ERROR = "FAILED TO SEND REQUEST";
+export const CONNECTION_ACCEPT_ERROR = "FAILED TO ACCEPT REQUEST";
+export const CONNECTION_REJECT_ERROR = "FAILED TO REJECT REQUEST";
+export const CONNECTION_CANCEL_ERROR = "FAILED TO CANCEL REQUEST";
+export const CONNECTION_REMOVE_ERROR = "FAILED TO REMOVE PEER";
+export const CONNECTION_STATUS_ERROR = "CONNECTION DATA UNAVAILABLE";
+
+export function mapConnectionError(err: unknown, defaultMsg: string): string {
+  if (err instanceof Error) return err.message.toUpperCase();
+  return defaultMsg;
+}

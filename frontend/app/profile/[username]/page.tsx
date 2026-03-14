@@ -3,8 +3,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, TrendingUp, Compass, Users, Clock } from "lucide-react";
+import { Loader2, TrendingUp, Users, Clock } from "lucide-react";
 import { motion } from "framer-motion";
+import ConnectionButton from "@/components/ConnectionButton";
+import { CONNECTION_STATUS_ERROR } from "@/lib/messages";
 
 // Helper components reused from profile/page.tsx or similar
 function StatCell({ label, value }: { label: string; value: number | string }) {
@@ -62,10 +64,10 @@ export default function PublicProfilePage() {
       } else if (res.status === 404) {
         setError("User handle not found in the collective.");
       } else {
-        setError("Failed to sync profile data.");
+        setError(CONNECTION_STATUS_ERROR);
       }
     } catch (err) {
-      setError("Network error: Link failed.");
+      setError(CONNECTION_STATUS_ERROR);
     } finally {
       setLoading(false);
     }
@@ -149,20 +151,14 @@ export default function PublicProfilePage() {
               </div>
             </div>
 
-            <div className="flex flex-col items-end gap-2 shrink-0">
-              <div className="flex items-center gap-3">
-                <span className="w-2 h-2 bg-accent rounded-full animate-pulse shadow-[0_0_8px_var(--accent)]"></span>
-                <span className="text-[10px] font-mono text-text-secondary uppercase tracking-widest font-bold">
-                  ENTITY_VISUALIZED
-                </span>
-              </div>
-              <div className="font-mono text-[10px] text-text-secondary text-right">
-                LOC: {profile?.location || "UNDISCLOSED"}
-              </div>
+            <div className="flex items-center shrink-0">
+              {profileData?._id && (
+                <ConnectionButton targetUserId={profileData._id} />
+              )}
             </div>
           </div>
 
-          <div className="p-6 sm:p-10 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="p-6 sm:p-10 grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12">
             <div className="flex flex-col gap-4">
               <label className="text-[10px] font-mono text-text-secondary uppercase tracking-widest font-bold">
                 MISSION_BIO
@@ -171,6 +167,16 @@ export default function PublicProfilePage() {
                 {profile?.bio || "NO TRANSMISSION DATA AVAILABLE."}
               </p>
             </div>
+            
+            <div className="flex flex-col gap-4">
+              <label className="text-[10px] font-mono text-text-secondary uppercase tracking-widest font-bold">
+                OPERATIONAL_LOC
+              </label>
+              <div className="flex items-center gap-3 text-sm text-white font-mono uppercase border-l-2 border-border pl-4">
+                {profile?.location || "UNDISCLOSED"}
+              </div>
+            </div>
+
             <div className="flex flex-col gap-4">
               <label className="text-[10px] font-mono text-text-secondary uppercase tracking-widest font-bold">
                 CORE_SPECIALIZATIONS
