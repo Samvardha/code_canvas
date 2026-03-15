@@ -11,6 +11,7 @@ from routes.auth import router as auth_router
 from routes.users import router as users_router
 from routes.peers import router as peers_router
 from routes.health import router as health_router
+from routes.ai import router as ai_router
 
 load_dotenv()
 
@@ -58,5 +59,6 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(peers_router)
 app.include_router(health_router)
+app.include_router(ai_router)
 
 logger.info("All routes registered successfully")

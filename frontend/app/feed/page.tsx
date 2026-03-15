@@ -10,8 +10,11 @@ import {
   PlusSquare, 
   Sparkles,
   TrendingUp,
-  Cpu
+  Cpu,
+  Loader2,
+  X
 } from "lucide-react";
+import { aiApi } from "@/lib/api/ai";
 
 // Dummy data for the feed
 const DUMMY_POSTS = [
@@ -67,12 +70,36 @@ export default function FeedPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  const [draft, setDraft] = React.useState("");
+  const [suggestions, setSuggestions] = React.useState<string[]>([]);
+  const [isGenerating, setIsGenerating] = React.useState(false);
+
   // Redirection if not logged in
   React.useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
     }
   }, [user, loading, router]);
+
+  const handleSuggest = async () => {
+    if (!user || !draft.trim() || isGenerating) return;
+    
+    setIsGenerating(true);
+    try {
+      const token = await user.getIdToken();
+      const results = await aiApi.suggestCaptions(draft, token);
+      setSuggestions(results);
+    } catch (error) {
+      console.error("AI Generation failed:", error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const applySuggestion = (suggestion: string) => {
+    setDraft(suggestion);
+    setSuggestions([]);
+  };
 
   if (loading || !user) {
     return (
@@ -106,21 +133,66 @@ export default function FeedPage() {
             </div>
           </header>
 
-          {/* Post Composer Placeholder */}
+          {/* Post Composer */}
           <div className="p-6 border-b border-border bg-surface/30">
             <div className="flex gap-4">
-              <div className="w-10 h-10 border border-border bg-background shrink-0" />
+              <div className="w-10 h-10 border border-border bg-background shrink-0 overflow-hidden">
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover grayscale brightness-200" />
+                ) : (
+                  <div className="w-full h-full bg-border/20" />
+                )}
+              </div>
               <div className="flex-1 flex flex-col gap-4">
                 <textarea 
                   placeholder="INITIALIZE_POST_CONTENT..."
-                  className="w-full bg-transparent border-none text-sm font-mono focus:ring-0 resize-none min-h-[60px] text-white placeholder:text-border outline-none"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  className="w-full bg-transparent border-none text-sm font-mono focus:ring-0 resize-none min-h-[80px] text-white placeholder:text-border outline-none"
                 />
+
+                {/* AI Suggestions Results */}
+                <AnimatePresence>
+                  {suggestions.length > 0 && (
+                    <div className="flex flex-col gap-2 py-2 border-t border-border/30">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-mono text-accent uppercase tracking-wider">
+                          [ AI_SUGGESTIONS_READY ]
+                        </span>
+                        <button onClick={() => setSuggestions([])} className="hover:text-white text-text-secondary">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                      {suggestions.map((s, i) => (
+                        <button
+                          key={i}
+                          onClick={() => applySuggestion(s)}
+                          className="text-left text-xs bg-black/40 border border-border/50 p-2 hover:border-accent hover:bg-accent/5 transition-all text-text-secondary hover:text-white font-mono"
+                        >
+                          " {s} "
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </AnimatePresence>
+
                 <div className="flex justify-between items-center pt-2 border-t border-border/50">
-                  <div className="flex gap-2 text-text-secondary">
-                    <Sparkles className="w-4 h-4 cursor-pointer hover:text-accent transition-colors" />
+                  <div className="flex gap-3 text-text-secondary items-center">
+                    <button 
+                      onClick={handleSuggest} 
+                      disabled={isGenerating || !draft.trim()}
+                      className={`transition-colors flex items-center gap-1 ${isGenerating ? 'text-accent' : 'hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed'}`}
+                    >
+                      {isGenerating ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                      <span className="text-[10px] font-mono uppercase tracking-tighter">AI_Refine</span>
+                    </button>
                     <Cpu className="w-4 h-4 cursor-pointer hover:text-accent transition-colors" />
                   </div>
-                  <Button size="sm" className="h-8 px-4 text-[10px]">
+                  <Button size="sm" className="h-8 px-4 text-[10px] font-bold tracking-widest" disabled={!draft.trim()}>
                     BROADCAST
                   </Button>
                 </div>
