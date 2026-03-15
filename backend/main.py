@@ -22,7 +22,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# ─── Firebase Admin SDK Initialization ─────────────────────────────
+# Firebase Admin SDK Initialization
 cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "serviceAccountKey.json")
 if os.path.exists(cred_path):
     cred = credentials.Certificate(cred_path)
@@ -32,11 +32,11 @@ else:
 
 logger.info("Firebase Admin SDK initialized")
 
-# ─── FastAPI Application Setup ────────────────────────────────────
+# FastAPI Application Setup
 app = FastAPI(
-    title="Code Canvas API",
+    title="Tech Connect API",
     version="1.0.0",
-    description="Backend API for Code Canvas platform",
+    description="Backend API for Tech Connect platform",
 )
 
 @app.on_event("startup")
@@ -44,7 +44,7 @@ async def startup_event():
     from utils.database import ensure_indexes
     await ensure_indexes()
 
-# ─── CORS Middleware ──────────────────────────────────────────────
+# CORS Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -53,7 +53,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── Route Registration ────────────────────────────────────────────
+# Route Registration
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(peers_router)

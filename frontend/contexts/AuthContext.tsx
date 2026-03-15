@@ -33,7 +33,7 @@ interface AuthContextType {
   signInWithEmail: (email: string, password: string) => Promise<User>;
   linkGitHub: () => Promise<void>;
   logout: () => Promise<void>;
-  fetchGitHubProfile: () => Promise<any>;
+  fetchGitHubProfile: (page?: number, per_page?: number) => Promise<any>;
   fetchUserProfile: () => Promise<any>;
   refreshProfile: () => Promise<void>;
 }
@@ -283,24 +283,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchUserProfile]);
 
-  const fetchGitHubProfile = React.useCallback(async () => {
-    if (!auth.currentUser) return null;
-    try {
-      const idToken = await auth.currentUser.getIdToken();
-      const backendUrl =
-        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-      const res = await fetch(`${backendUrl}/users/me/github`, {
-        headers: { Authorization: `Bearer ${idToken}` },
-      });
-      if (res.ok) {
-        return await res.json();
+  const fetchGitHubProfile = React.useCallback(
+    async (page: number = 1, per_page: number = 9) => {
+      if (!auth.currentUser) return null;
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        const backendUrl =
+          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const res = await fetch(
+          `${backendUrl}/users/me/github?page=${page}&per_page=${per_page}`,
+          {
+            headers: { Authorization: `Bearer ${idToken}` },
+          },
+        );
+        if (res.ok) {
+          return await res.json();
+        }
+        return null;
+      } catch {
+        console.error("Failed to fetch GitHub profile");
+        return null;
       }
-      return null;
-    } catch {
-      console.error("Failed to fetch GitHub profile");
-      return null;
-    }
-  }, []);
+    },
+    [],
+  );
 
   return (
     <AuthContext.Provider

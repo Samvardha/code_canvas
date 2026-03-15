@@ -1,30 +1,11 @@
 import logging
 import httpx
+import asyncio
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
 GITHUB_API_BASE = "https://api.github.com"
-GITHUB_GRAPHQL_ENDPOINT = f"{GITHUB_API_BASE}/graphql"
-
-GRAPHQL_PINNED_REPOSITORIES_QUERY = """
-query($login: String!) {
-  user(login: $login) {
-    pinnedItems(first: 6, types: REPOSITORY) {
-      nodes {
-        ... on Repository {
-          name
-          description
-          url
-          stargazerCount
-          forkCount
-          primaryLanguage { name color }
-        }
-      }
-    }
-  }
-}
-"""
 
 
 class GitHubService:
@@ -57,7 +38,7 @@ class GitHubService:
             return None
 
     @staticmethod
-    async def fetch_user_profile(access_token: str) -> Dict[str, Any]:
+    async def fetch_user_profile(access_token: str, page: int = 1, per_page: int = 9) -> Dict[str, Any]:
         """
         Fetch comprehensive GitHub user profile data.
         
@@ -79,10 +60,8 @@ class GitHubService:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 profile_data = await GitHubService._fetch_user_identity(client, headers)
                 profile_data["emails"] = await GitHubService._fetch_user_emails(client, headers)
-                profile_data["repositories"] = await GitHubService._fetch_user_repositories(client, headers)
-                profile_data["organizations"] = await GitHubService._fetch_user_organizations(client, headers)
+                profile_data["repositories"] = await GitHubService._fetch_user_repositories(client, headers, page=page, per_page=per_page)
                 profile_data["activity"] = await GitHubService._fetch_user_activity(client, headers, profile_data["identity"]["username"])
-                profile_data["pinned_repos"] = await GitHubService._fetch_pinned_repositories(client, headers, profile_data["identity"]["username"])
 
                 logger.info(
                     "GitHub profile fetched successfully",
@@ -95,10 +74,43 @@ class GitHubService:
             raise
 
     @staticmethod
-    async def _fetch_user_identity(client: httpx.AsyncClient, headers: Dict[str, str]) -> Dict[str, Any]:
+    async def fetch_public_profile(username: str, page: int = 1, per_page: int = 9) -> Dict[str, Any]:
+        """
+        Fetch public GitHub user profile data without authentication.
+        
+        Args:
+            username: GitHub username
+            
+        Returns:
+            Dictionary containing public user profile data
+        """
+        headers = {
+            "Accept": "application/vnd.github+json",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                profile_data = await GitHubService._fetch_user_identity(client, headers, username)
+                profile_data["emails"] = [] # Public profiles don't expose emails via API easily
+                profile_data["repositories"] = await GitHubService._fetch_user_repositories(client, headers, username, page=page, per_page=per_page)
+                profile_data["activity"] = await GitHubService._fetch_user_activity(client, headers, username)
+
+                logger.info(
+                    "Public GitHub profile fetched successfully",
+                    extra={"username": username},
+                )
+                return profile_data
+
+        except Exception as e:
+            logger.error("Failed to fetch public GitHub profile", exc_info=True, extra={"username": username})
+            raise
+
+    @staticmethod
+    async def _fetch_user_identity(client: httpx.AsyncClient, headers: Dict[str, str], username: Optional[str] = None) -> Dict[str, Any]:
         """Fetch GitHub user identity and profile information."""
         try:
-            response = await client.get(f"{GITHUB_API_BASE}/user", headers=headers)
+            url = f"{GITHUB_API_BASE}/users/{username}" if username else f"{GITHUB_API_BASE}/user"
+            response = await client.get(url, headers=headers)
             response.raise_for_status()
             profile = response.json()
             username = profile.get("login", "")
@@ -107,14 +119,9 @@ class GitHubService:
                 "identity": {
                     "username": username,
                     "name": profile.get("name"),
-                    "bio": profile.get("bio"),
-                    "location": profile.get("location"),
                     "company": profile.get("company"),
                     "website": profile.get("blog"),
-                    "avatar_url": profile.get("avatar_url"),
                     "html_url": profile.get("html_url"),
-                    "followers": profile.get("followers", 0),
-                    "following": profile.get("following", 0),
                     "public_repos": profile.get("public_repos", 0),
                     "public_gists": profile.get("public_gists", 0),
                     "created_at": profile.get("created_at"),
@@ -143,79 +150,58 @@ class GitHubService:
             logger.warning("Failed to fetch GitHub emails", exc_info=True)
             return []
 
+
     @staticmethod
-    async def _fetch_user_repositories(client: httpx.AsyncClient, headers: Dict[str, str]) -> Dict[str, Any]:
+    async def _fetch_user_repositories(
+        client: httpx.AsyncClient, 
+        headers: Dict[str, str], 
+        username: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 9
+    ) -> Dict[str, Any]:
         """Fetch GitHub user repositories and statistics."""
         try:
+            if username:
+                url = f"{GITHUB_API_BASE}/users/{username}/repos?type=owner&sort=stars&page={page}&per_page={per_page}"
+            else:
+                url = f"{GITHUB_API_BASE}/user/repos?affiliation=owner&sort=stars&page={page}&per_page={per_page}"
             response = await client.get(
-                f"{GITHUB_API_BASE}/user/repos?type=public&sort=updated&per_page=100",
+                url,
                 headers=headers,
             )
             response.raise_for_status()
             raw_repos = response.json()
 
             repos = []
-            total_stars = 0
-            total_forks = 0
-            aggregate_languages = {}
 
             for repo in raw_repos:
                 stars = repo.get("stargazers_count", 0)
                 forks = repo.get("forks_count", 0)
-                total_stars += stars
-                total_forks += forks
-                lang = repo.get("language")
-
-                if lang:
-                    aggregate_languages[lang] = aggregate_languages.get(lang, 0) + 1
-
+                
+                primary_lang = repo.get("language")
+                langs = [primary_lang] if primary_lang else []
+                
                 repos.append({
                     "name": repo.get("name"),
                     "full_name": repo.get("full_name"),
                     "description": repo.get("description"),
                     "html_url": repo.get("html_url"),
-                    "language": lang,
+                    "languages": langs,
                     "stars": stars,
                     "forks": forks,
-                    "watchers": repo.get("watchers_count", 0),
-                    "open_issues": repo.get("open_issues_count", 0),
-                    "is_fork": repo.get("fork", False),
-                    "created_at": repo.get("created_at"),
-                    "updated_at": repo.get("updated_at"),
-                    "pushed_at": repo.get("pushed_at"),
                 })
 
             return {
                 "repositories": repos,
                 "repo_stats": {
-                    "total_stars": total_stars,
-                    "total_forks": total_forks,
-                    "total_repos": len(repos),
+                    "page": page,
+                    "per_page": per_page,
                 },
-                "aggregate_languages": aggregate_languages,
             }
         except Exception as e:
             logger.warning("Failed to fetch GitHub repositories", exc_info=True)
-            return {"repositories": [], "repo_stats": {}, "aggregate_languages": {}}
+            return {"repositories": [], "repo_stats": {}}
 
-    @staticmethod
-    async def _fetch_user_organizations(client: httpx.AsyncClient, headers: Dict[str, str]) -> list:
-        """Fetch GitHub user organizations."""
-        try:
-            response = await client.get(f"{GITHUB_API_BASE}/user/orgs", headers=headers)
-            if response.status_code == 200:
-                return [
-                    {
-                        "login": o.get("login"),
-                        "avatar_url": o.get("avatar_url"),
-                        "description": o.get("description"),
-                    }
-                    for o in response.json()
-                ]
-            return []
-        except Exception as e:
-            logger.warning("Failed to fetch GitHub organizations", exc_info=True)
-            return []
 
     @staticmethod
     async def _fetch_user_activity(client: httpx.AsyncClient, headers: Dict[str, str], username: str) -> list:
@@ -225,7 +211,7 @@ class GitHubService:
 
         try:
             response = await client.get(
-                f"{GITHUB_API_BASE}/users/{username}/events/public?per_page=30",
+                f"{GITHUB_API_BASE}/users/{username}/events/public?per_page=10",
                 headers=headers,
             )
             if response.status_code == 200:
@@ -236,54 +222,9 @@ class GitHubService:
                         "created_at": e.get("created_at"),
                         "action": e.get("payload", {}).get("action"),
                     }
-                    for e in response.json()
+                    for e in response.json()[:5]
                 ]
             return []
         except Exception as e:
             logger.warning("Failed to fetch GitHub activity", exc_info=True)
-            return []
-
-    @staticmethod
-    async def _fetch_pinned_repositories(client: httpx.AsyncClient, headers: Dict[str, str], username: str) -> list:
-        """Fetch GitHub user pinned repositories via GraphQL."""
-        if not username:
-            return []
-
-        try:
-            response = await client.post(
-                GITHUB_GRAPHQL_ENDPOINT,
-                headers=headers,
-                json={
-                    "query": GRAPHQL_PINNED_REPOSITORIES_QUERY,
-                    "variables": {"login": username},
-                },
-            )
-            response.raise_for_status()
-            gql_data = response.json()
-
-            if "errors" in gql_data:
-                logger.warning("GraphQL errors fetching pinned repos", extra={"errors": gql_data["errors"]})
-                return []
-
-            pinned_nodes = (
-                gql_data.get("data", {})
-                .get("user", {})
-                .get("pinnedItems", {})
-                .get("nodes", [])
-            )
-
-            return [
-                {
-                    "name": p.get("name"),
-                    "description": p.get("description"),
-                    "url": p.get("url"),
-                    "stars": p.get("stargazerCount", 0),
-                    "forks": p.get("forkCount", 0),
-                    "language": (p.get("primaryLanguage") or {}).get("name"),
-                    "language_color": (p.get("primaryLanguage") or {}).get("color"),
-                }
-                for p in pinned_nodes
-            ]
-        except Exception as e:
-            logger.warning("Failed to fetch pinned repositories", exc_info=True)
             return []

@@ -17,11 +17,12 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.get("/search")
 async def search_users(
     q: str = Query(None),
-    limit: int = Query(10, le=20),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(10, le=50),
     current_uid: str = Depends(get_current_uid)
 ):
     """
-    Search for users by username or name.
+    Search for users by username or name with pagination.
     """
     if q is None or not q.strip():
         return JSONResponse(
@@ -40,8 +41,6 @@ async def search_users(
     
     collection = await get_users_collection()
     
-    # Query: $or on profile.username and profile.name, excluding current user
-    # Note: Using profile.name as "display_name" as per model schema
     search_filter = {
         "$and": [
             {"_id": {"$ne": current_uid}},
@@ -54,17 +53,18 @@ async def search_users(
         ]
     }
     
-    # Project specific fields as requested
     projection = {
         "_id": 1,
         "profile.username": 1,
         "profile.name": 1,
         "profile.avatar_url": 1,
-        "profile.bio": 1,
-        "profile.skills": 1
+        "profile.bio": 1
     }
     
-    cursor = collection.find(search_filter, projection).limit(limit)
+    # Get total count for pagination info
+    total_matches = await collection.count_documents(search_filter)
+    
+    cursor = collection.find(search_filter, projection).skip(offset).limit(limit)
     
     users = []
     async for user in cursor:
@@ -79,7 +79,8 @@ async def search_users(
         
     return {
         "users": users,
-        "count": len(users),
+        "total": total_matches,
+        "has_more": offset + len(users) < total_matches,
         "query": query_str
     }
 
@@ -120,6 +121,47 @@ async def check_username(username: str):
         raise HTTPException(status_code=500, detail="Failed to check username")
 
 
+@router.get("/profile/{username}/github")
+async def get_public_github_profile(
+    username: str, 
+    page: int = Query(1, ge=1),
+    per_page: int = Query(9, ge=1, le=100),
+    uid: str = Depends(get_current_uid)
+):
+    """
+    Fetch public GitHub profile data for any user.
+    Uses public APIs without needing the target user's token.
+    """
+    try:
+        # 1. Fetch the user from database to get their GitHub username
+        user_doc = await UserService.fetch_user_by_username(username)
+        if not user_doc:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        github_info = user_doc.get("providers", {}).get("github", {})
+        github_username = github_info.get("username")
+
+        if not github_username or not github_info.get("linked"):
+            return {
+                "connected": False,
+                "data": None,
+            }
+
+        # 2. Fetch fresh public GitHub data
+        github_data = await GitHubService.fetch_public_profile(github_username, page=page, per_page=per_page)
+
+        return {
+            "connected": True,
+            "data": github_data,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to fetch public GitHub profile", exc_info=True, extra={"username": username})
+        raise HTTPException(status_code=500, detail="Failed to fetch public GitHub profile")
+
+
 @router.get("/me")
 async def get_current_user(uid: str = Depends(get_current_uid)):
     """
@@ -144,7 +186,11 @@ async def get_current_user(uid: str = Depends(get_current_uid)):
 
 
 @router.get("/me/github")
-async def get_github_profile(uid: str = Depends(get_current_uid)):
+async def get_github_profile(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(9, ge=1, le=100),
+    uid: str = Depends(get_current_uid)
+):
     """
     Fetch fresh GitHub profile data for authenticated user.
     
@@ -177,7 +223,7 @@ async def get_github_profile(uid: str = Depends(get_current_uid)):
             logger.error("Failed to decrypt GitHub token", extra={"uid": uid})
             raise HTTPException(status_code=500, detail="Failed to decrypt GitHub token")
 
-        github_data = await GitHubService.fetch_user_profile(plain_token)
+        github_data = await GitHubService.fetch_user_profile(plain_token, page=page, per_page=per_page)
  
         logger.info(
             "GitHub profile retrieved",

@@ -44,7 +44,6 @@ export default function HowItWorks() {
               }}
               className="flex flex-col border border-border p-8 md:p-12 bg-surface overflow-hidden group relative hover:border-accent transition-colors duration-500"
             >
-              {/* Massive background number */}
               <span className="text-8xl md:text-[10rem] leading-none font-black font-(family-name:--font-space-grotesk) text-border absolute md:-top-6 md:-right-6 top-0 right-0 pointer-events-none transition-colors duration-500 opacity-30 group-hover:text-accent/10 select-none">
                 0{i + 1}
               </span>

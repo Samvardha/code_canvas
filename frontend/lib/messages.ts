@@ -72,3 +72,11 @@ export function mapConnectionError(err: unknown, defaultMsg: string): string {
   if (err instanceof Error) return err.message.toUpperCase();
   return defaultMsg;
 }
+
+// Avatar Upload Messages
+export const UPLOAD_SUCCESS = "AVATAR_UPDATED_SUCCESSFULLY";
+export const UPLOAD_FAILED = "UPLOAD_FAILED";
+export const UPLOAD_NETWORK_ERROR = "NETWORK_ERROR_UPLOAD_FAILED";
+export const UPLOAD_INVALID_FILE = "INVALID_FILE_TYPE_ONLY_JPEG_PNG_ALLOWED";
+export const UPLOAD_FILE_TOO_LARGE = "FILE_TOO_LARGE_MAX_5MB";
+export const UPLOAD_TOO_MANY_REQUESTS = "TOO_MANY_REQUESTS_TRY_AGAIN_LATER";

@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { motion } from "framer-motion";
 import { Heart, MessageCircle, Share2, MoreHorizontal, Clock } from "lucide-react";
 
@@ -33,12 +32,10 @@ export function PostCard({
       animate={{ opacity: 1, y: 0 }}
       className="w-full bg-surface border border-border overflow-hidden group hover:border-accent/40 transition-colors duration-500"
     >
-      {/* Header */}
       <div className="p-4 sm:p-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 border border-border bg-background overflow-hidden relative">
             {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={avatarUrl}
                 alt={username}

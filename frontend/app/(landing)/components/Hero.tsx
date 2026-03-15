@@ -26,7 +26,6 @@ export default function Hero() {
     <section className="relative pt-16 pb-24 lg:pt-32 lg:pb-32 border-b border-border overflow-hidden">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12 relative z-10">
         <div className="flex flex-col xl:flex-row items-center gap-12 lg:gap-20">
-          {/* Main content left side */}
           <motion.div
             variants={container}
             initial="hidden"
@@ -84,14 +83,12 @@ export default function Hero() {
             </motion.div>
           </motion.div>
 
-          {/* Abstract Terminal Decorator right side */}
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="w-full xl:w-[450px] hidden lg:flex flex-col border border-border bg-black/80 backdrop-blur p-8 shadow-2xl relative"
           >
-            {/* Corner accents */}
             <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-accent"></div>
             <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-accent"></div>
 

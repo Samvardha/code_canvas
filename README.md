@@ -1,4 +1,4 @@
-# TechConnect — Developer Community Platform
+# Tech Connect — Developer Community Platform
 
 A full-stack developer collaboration platform built with **Next.js 16** and **FastAPI**, featuring Firebase Authentication, GitHub integration, user search, and a dark brutalist-tech design system.
 

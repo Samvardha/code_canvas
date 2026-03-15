@@ -8,7 +8,7 @@ interface BannerProps {
   variant?: BannerVariant;
   children: React.ReactNode;
   className?: string;
-  compact?: boolean; // slightly smaller padding when true
+  compact?: boolean;
 }
 
 const baseClasses =

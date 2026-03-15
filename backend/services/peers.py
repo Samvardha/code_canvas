@@ -21,13 +21,17 @@ class ConnectionService:
     """Service for managing user peer connections and peer requests."""
 
     @staticmethod
-    async def send_request(sender_id: str, receiver_id: str) -> Tuple[bool, str]:
+    async def send_request(sender_id: str, receiver_id: str) -> Tuple[bool, str, Optional[ConnectionStatus], Optional[str]]:
         """
         Send a connection request from one user to another.
-        Returns: (success, message)
+        Follows a smart decision flow:
+        - If already connected -> ui_state: "connected"
+        - If outgoing pending -> ui_state: "pending"
+        - If incoming pending -> ui_state: "accept"
+        - Otherwise create request -> ui_state: "pending"
         """
         if sender_id == receiver_id:
-            return False, "You cannot send a connection request to yourself"
+            return False, "You cannot send a connection request to yourself", None, None
 
         peer_req_col = await get_peer_requests_collection()
         peer_col = await get_peers_collection()
@@ -36,29 +40,34 @@ class ConnectionService:
         users_sorted = sorted([sender_id, receiver_id])
         existing_peering = await peer_col.find_one({"users": users_sorted})
         if existing_peering:
-            return False, "Already connected"
+            return True, "Already connected", ConnectionStatus.CONNECTED, None
 
-        # 2. Check if a request already exists (either way)
-        existing_req = await peer_req_col.find_one({
-            "$or": [
-                {"sender_id": sender_id, "receiver_id": receiver_id},
-                {"sender_id": receiver_id, "receiver_id": sender_id}
-            ]
+        # 2. Check if outgoing request already exists
+        outgoing_req = await peer_req_col.find_one({
+            "sender_id": sender_id, 
+            "receiver_id": receiver_id
         })
-        
-        if existing_req:
-            return False, "A connection request is already pending"
+        if outgoing_req:
+            return True, "Request already sent", ConnectionStatus.PENDING, str(outgoing_req["_id"])
 
-        # 3. Create request
+        # 3. Check if incoming request already exists
+        incoming_req = await peer_req_col.find_one({
+            "sender_id": receiver_id, 
+            "receiver_id": sender_id
+        })
+        if incoming_req:
+            return True, "This user has already sent you a request", ConnectionStatus.ACCEPT, str(incoming_req["_id"])
+
+        # 4. Create request
         new_request = PeerRequest(
             sender_id=sender_id,
             receiver_id=receiver_id
         )
         
         try:
-            await peer_req_col.insert_one(new_request.dict())
+            result = await peer_req_col.insert_one(new_request.dict())
             logger.info(f"Peer request sent from {sender_id} to {receiver_id}")
-            return True, "Connection request sent"
+            return True, "Connection request sent", ConnectionStatus.PENDING, str(result.inserted_id)
         except Exception as e:
             logger.error(f"Failed to send connection request: {e}")
             raise

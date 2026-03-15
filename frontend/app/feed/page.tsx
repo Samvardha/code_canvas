@@ -201,7 +201,7 @@ export default function FeedPage() {
           </div>
           
           <footer className="mt-auto text-[9px] font-mono text-text-secondary flex flex-wrap gap-x-4 gap-y-2 uppercase">
-             <span>© 2026 C—Canvas</span>
+             <span>© 2026 Tech Connect</span>
              <a href="#" className="hover:text-white transition-colors">Privacy</a>
              <a href="#" className="hover:text-white transition-colors">Terms</a>
              <a href="#" className="hover:text-white transition-colors">Nodes</a>

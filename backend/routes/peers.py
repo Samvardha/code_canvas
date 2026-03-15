@@ -22,7 +22,7 @@ async def send_peer_request(
     """
     Send a peer connection request to another user.
     """
-    success, message = await ConnectionService.send_request(current_uid, targetUserId)
+    success, message, ui_state, req_id = await ConnectionService.send_request(current_uid, targetUserId)
     
     if not success:
         return JSONResponse(
@@ -30,7 +30,7 @@ async def send_peer_request(
             content={"error": True, "message": message}
         )
     
-    return {"message": message}
+    return {"message": message, "status": ui_state, "requestId": req_id}
 
 @router.post("/accept/{requestId}")
 async def accept_peer_request(

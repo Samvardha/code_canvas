@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { TopNavbar } from "./TopNavbar";
+import { Navbar } from "./Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function NavbarWrapper({ children }: { children: React.ReactNode }) {
@@ -17,7 +17,7 @@ export function NavbarWrapper({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {showNavbar && <TopNavbar />}
+      {showNavbar && <Navbar />}
       {children}
     </>
   );

@@ -74,11 +74,11 @@ export default function Footer() {
         <div className="pt-24 pb-8 flex flex-col items-center justify-center">
           {/* Using text outline and white fill for clarity rather than only transparent stroke */}
           <h2 className="text-[12vw] sm:text-[10vw] leading-none font-black font-(family-name:--font-space-grotesk) tracking-tighter uppercase text-white cursor-default select-none pb-4 relative">
-            CODECANVAS
+            TECH CONNECT
           </h2>
           <div className="flex w-full flex-col sm:flex-row justify-between items-center mt-8 font-mono text-xs uppercase text-text-secondary border-t border-border pt-8 font-bold gap-4">
             <span className="opacity-50">
-              © {new Date().getFullYear()} CODECANVAS INC.
+              © {new Date().getFullYear()} TECH CONNECT INC.
             </span>
             <span className="flex items-center gap-3">
               <span className="w-2 h-2 bg-accent rounded-full animate-pulse shadow-[0_0_10px_var(--accent)]"></span>
