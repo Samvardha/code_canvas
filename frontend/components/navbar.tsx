@@ -5,7 +5,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Search, ChevronDown, LogOut, User, Compass, Users, Calendar, Command, Loader2 } from "lucide-react";
+import {
+  Search,
+  ChevronDown,
+  LogOut,
+  User,
+  Compass,
+  Users,
+  Calendar,
+  Command,
+  Loader2,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { searchUsers, User as SearchUser } from "@/lib/api/users";
 
@@ -75,7 +85,7 @@ export function Navbar() {
           debouncedSearchQuery.trim(),
           idToken,
           0,
-          10
+          10,
         );
         setSearchResults(data.users);
         setHasMore(data.has_more);
@@ -101,7 +111,7 @@ export function Navbar() {
         debouncedSearchQuery.trim(),
         idToken,
         newOffset,
-        10
+        10,
       );
       setSearchResults((prev) => [...prev, ...data.users]);
       setHasMore(data.has_more);
@@ -140,16 +150,19 @@ export function Navbar() {
   }, []);
 
   const navItems = [
-    { label: "Explore", href: "/feed", icon: Compass },
-    { label: "Collab", href: "/collab", icon: Users },
-    { label: "Events", href: "/events", icon: Calendar },
+    { label: "Explore", href: "/explore-feed", icon: Compass },
+    { label: "Collab", href: "/collab-feed", icon: Users },
+    { label: "Events", href: "/events-feed", icon: Calendar },
   ];
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border">
       <div className="max-w-[1440px] mx-auto h-20 px-6 flex items-center justify-between gap-8">
         <div className="flex items-center gap-12">
-          <Link href="/feed" className="flex items-center gap-3 group shrink-0">
+          <Link
+            href="/explore-feed"
+            className="flex items-center gap-3 group shrink-0"
+          >
             <div className="w-4 h-4 bg-accent rotate-45 group-hover:scale-110 transition-transform duration-300" />
             <span className="text-xl font-black tracking-tighter uppercase font-(family-name:--font-space-grotesk) mt-1">
               TECH CONNECT
@@ -216,7 +229,7 @@ export function Navbar() {
                   exit={{ height: 0, opacity: 0 }}
                   className="absolute top-full left-0 w-full mt-2 border border-border bg-background/95 backdrop-blur-xl shadow-2xl z-50 overflow-hidden"
                 >
-                  <div 
+                  <div
                     ref={scrollRef}
                     onScroll={handleSearchScroll}
                     className="p-2 flex flex-col max-h-[400px] overflow-y-auto hide-scrollbar"

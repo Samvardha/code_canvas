@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
+from utils.serialization import COMMON_JSON_ENCODERS
 
 
 class Profile(BaseModel):
@@ -42,7 +43,7 @@ class Settings(BaseModel):
 
 class UserResponse(BaseModel):
     """Complete user profile response."""
-    id: str = Field(description="Firebase user ID")
+    id: str = Field(alias="_id", description="Firebase user ID")
     email: str = Field(description="User email")
     profile: Profile
     providers: Providers
@@ -53,6 +54,8 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
     class Config:
+        populate_by_name = True
+        json_encoders = COMMON_JSON_ENCODERS
         json_schema_extra = {
             "example": {
                 "_id": "firebase_uid_123",
@@ -93,6 +96,8 @@ class OnboardingRequest(BaseModel):
     skills: List[str] = Field(default_factory=list, description="User's skills")
 
     class Config:
+        populate_by_name = True
+        json_encoders = COMMON_JSON_ENCODERS
         json_schema_extra = {
             "example": {
                 "name": "John Doe",

@@ -29,6 +29,11 @@ async def get_peers_collection():
     return db.get_collection("peers")
 
 
+async def get_posts_collection():
+    """Dependency to get the MongoDB posts collection."""
+    return db.get_collection("posts")
+
+
 async def ensure_indexes():
     """Create necessary database indexes."""
     try:
@@ -49,7 +54,19 @@ async def ensure_indexes():
 
         # Indexes for peers
         peers = await get_peers_collection()
-        await peers.create_index("users", unique=True, background=True)
+        try:
+            await peers.drop_index("users_1")
+        except Exception:
+            pass
+        await peers.create_index("users", background=True)
+
+        # Indexes for posts
+        posts = await get_posts_collection()
+        await posts.create_index("created_at", background=True)
+        await posts.create_index([("categories", 1), ("created_at", -1)], background=True)
+        await posts.create_index([("author_id", 1), ("created_at", -1)], background=True)
+        await posts.create_index("collab_meta.status", background=True)
+        await posts.create_index("event_meta.start_at", background=True)
 
         print("Successfully ensured database indexes.")
     except Exception as e:

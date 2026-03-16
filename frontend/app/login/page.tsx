@@ -3,10 +3,19 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { checkEmailSignInMethods, sendResetPasswordEmail, sendUserEmailVerification, } from "@/lib/api/auth";
+import {
+  checkEmailSignInMethods,
+  sendResetPasswordEmail,
+  sendUserEmailVerification,
+} from "@/lib/api/auth";
 import { auth } from "@/lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
-import { GENERIC_AUTH_ERROR, GENERIC_GOOGLE_ERROR, GENERIC_RESET_ERROR, mapAuthError, } from "@/lib/messages";
+import {
+  GENERIC_AUTH_ERROR,
+  GENERIC_GOOGLE_ERROR,
+  GENERIC_RESET_ERROR,
+  mapAuthError,
+} from "@/lib/messages";
 import { Banner } from "@/components/Banner";
 import { Button } from "@/components/Button";
 import { validateEmail, validatePassword } from "@/lib/utils/validation";
@@ -23,7 +32,15 @@ export type Flow =
   | "reset-password";
 
 export default function LoginPage() {
-  const { user, loading, profileComplete, logout, signInWithGoogle, signInWithEmail, signUpWithEmail, } = useAuth();
+  const {
+    user,
+    loading,
+    profileComplete,
+    logout,
+    signInWithGoogle,
+    signInWithEmail,
+    signUpWithEmail,
+  } = useAuth();
   const router = useRouter();
   const [flow, setFlow] = useState<Flow>("email-check");
   const [email, setEmail] = useState("");
@@ -85,7 +102,7 @@ export default function LoginPage() {
       } else if (!profileComplete) {
         router.push("/onboarding");
       } else {
-        router.push("/feed");
+        router.push("/explore-feed");
       }
     }
   }, [user, loading, profileComplete, router]);
@@ -178,7 +195,6 @@ export default function LoginPage() {
     try {
       await sendResetPasswordEmail(email.trim());
       setSuccessMsg("PASSWORD RESET EMAIL SENT! CHECK YOUR INBOX.");
-
     } catch (err: unknown) {
       console.error("Password reset error:", err);
       const msg = mapAuthError(err);
@@ -228,7 +244,7 @@ export default function LoginPage() {
               if (!profileComplete) {
                 router.push("/onboarding");
               } else {
-                router.push("/feed");
+                router.push("/explore-feed");
               }
             } else {
               setError(

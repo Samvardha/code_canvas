@@ -8,12 +8,14 @@ export function NavbarWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, profileComplete } = useAuth();
 
-  const showNavbar = user && profileComplete && (
-    pathname.startsWith("/feed") || 
-    pathname.startsWith("/profile") || 
-    pathname.startsWith("/collab") || 
-    pathname.startsWith("/events")
-  );
+  const showNavbar =
+    user &&
+    profileComplete &&
+    (pathname.startsWith("/explore-feed") ||
+      pathname.startsWith("/profile") ||
+      pathname.startsWith("/collab-feed") ||
+      pathname.startsWith("/events-feed") ||
+      pathname.startsWith("/posts"));
 
   return (
     <>

@@ -14,16 +14,63 @@ cloudinary.config(
     secure=True
 )
 
-def upload_image(file_path_or_blob: any, folder: str = "avatars") -> Optional[str]:
+def upload_media(file_content: bytes, resource_type: str = "auto", folder: str = "posts") -> Optional[dict]:
     """
-    Upload an image to Cloudinary and return the secure URL.
+    Upload media (image/video) to Cloudinary and return full metadata.
     
     Args:
-        file_path_or_blob: Path to local file or the file object/bytes
-        folder: Cloudinary folder to store the image
+        file_content: The file bytes to upload
+        resource_type: "image", "video", or "auto"
+        folder: Cloudinary folder to store the media
         
     Returns:
-        Secure URL of the uploaded image or None if upload fails
+        Dictionary with Cloudinary metadata or None if upload fails
+    """
+    try:
+        response = cloudinary.uploader.upload(
+            file_content,
+            folder=f"Code Canvas/{folder}",
+            resource_type=resource_type,
+            # For videos, generate a thumbnail
+            eager=[{"width": 400, "height": 300, "crop": "pad", "format": "jpg"}] if resource_type == "video" else []
+        )
+        
+        # Normalize response
+        result = {
+            "url": response.get("secure_url"),
+            "public_id": response.get("public_id"),
+            "mime_type": f"{response.get('resource_type')}/{response.get('format')}",
+            "width": response.get("width"),
+            "height": response.get("height"),
+            "bytes": response.get("bytes"),
+            "type": response.get("resource_type")
+        }
+        
+        if resource_type == "video" or response.get("resource_type") == "video":
+            result["duration_sec"] = response.get("duration")
+            # Get thumbnail from eager or dedicated transformation
+            if response.get("eager"):
+                result["thumbnail_url"] = response["eager"][0].get("secure_url")
+        
+        return result
+    except Exception as e:
+        logger.error(f"Cloudinary upload failed: {str(e)}", exc_info=True)
+        return None
+
+def delete_media(public_id: str, resource_type: str = "image") -> bool:
+    """
+    Delete media from Cloudinary.
+    """
+    try:
+        cloudinary.uploader.destroy(public_id, resource_type=resource_type)
+        return True
+    except Exception as e:
+        logger.error(f"Cloudinary delete failed: {str(e)}", exc_info=True)
+        return False
+
+def upload_image(file_path_or_blob: any, folder: str = "avatars") -> Optional[str]:
+    """
+    Legacy helper for backward compatibility.
     """
     try:
         response = cloudinary.uploader.upload(
