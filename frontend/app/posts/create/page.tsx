@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -186,7 +186,7 @@ const VideoPreview = ({ url }: { url: string }) => {
   );
 };
 
-export default function CreatePostPage() {
+function CreatePostContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1487,5 +1487,21 @@ export default function CreatePostPage() {
         onClose={() => setToast({ ...toast, isVisible: false })}
       />
     </main>
+  );
+}
+
+export default function CreatePostPage() {
+  return (
+    <Suspense 
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-black">
+          <div className="font-mono text-accent text-sm uppercase tracking-widest font-bold animate-pulse flex items-center gap-3">
+            <div className="w-3 h-3 bg-accent rotate-45" />[ SYNCING_SIGNAL_DECODE ]
+          </div>
+        </div>
+      }
+    >
+      <CreatePostContent />
+    </Suspense>
   );
 }
