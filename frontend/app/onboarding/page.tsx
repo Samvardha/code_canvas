@@ -46,7 +46,7 @@ export default function OnboardingPage() {
     if (!loading && !user) {
       router.push("/login");
     } else if (!loading && profileComplete) {
-      router.push("/feed");
+      router.push("/explore-feed");
     }
   }, [user, loading, profileComplete, router]);
 
@@ -85,7 +85,6 @@ export default function OnboardingPage() {
     }
   };
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -118,7 +117,7 @@ export default function OnboardingPage() {
 
       await updateUserProfile(trimmedData, idToken);
       await refreshProfile();
-      router.push("/feed");
+      router.push("/explore-feed");
     } catch (err: any) {
       setError(err.message || "ONBOARDING_FAILED: CHECK_INPUTS");
     } finally {
@@ -207,7 +206,6 @@ export default function OnboardingPage() {
                   }}
                   onCheck={checkUsername}
                 />
-
 
                 {/* Location */}
                 <div className="flex flex-col gap-2">

@@ -31,6 +31,17 @@ export type UpdateUserProfileResponse = {
   user?: User;
 };
 
+export type GitHubRepo = {
+  repo_url: string | null;
+  repo_name: string | null;
+  repo_owner: string | null;
+};
+
+export type GitHubReposResponse = {
+  repos: GitHubRepo[];
+  has_more: boolean;
+};
+
 export async function searchUsers(
   q: string,
   token: string,
@@ -119,3 +130,27 @@ export async function checkUsernameAvailability(
   return handleResponse<{ available: boolean }>(res, "Username check failed");
 }
 
+export async function getMe(token: string): Promise<any> {
+  const res = await fetch(`${baseUrl}/users/me`, {
+    method: "GET",
+    headers: getHeaders({ token, isJson: true }),
+  });
+
+  return handleResponse<any>(res, "Failed to fetch current user");
+}
+
+export async function getUserRepos(
+  token: string,
+  page: number = 1,
+  per_page: number = 9
+): Promise<GitHubReposResponse> {
+  const res = await fetch(
+    `${baseUrl}/users/me/github?repos=true&page=${page}&per_page=${per_page}`,
+    {
+      method: "GET",
+      headers: getHeaders({ token, isJson: true }),
+    }
+  );
+
+  return handleResponse<GitHubReposResponse>(res, "Failed to fetch user repositories");
+}

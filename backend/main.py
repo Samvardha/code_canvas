@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from routes.auth import router as auth_router
 from routes.users import router as users_router
 from routes.peers import router as peers_router
+from routes.posts import router as posts_router
 from routes.health import router as health_router
 from routes.ai import router as ai_router
 
@@ -58,6 +59,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(peers_router)
+app.include_router(posts_router)
 app.include_router(health_router)
 app.include_router(ai_router)
 

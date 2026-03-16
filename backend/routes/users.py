@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 import logging
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from fastapi.responses import JSONResponse
@@ -189,12 +190,11 @@ async def get_current_user(uid: str = Depends(get_current_uid)):
 async def get_github_profile(
     page: int = Query(1, ge=1),
     per_page: int = Query(9, ge=1, le=100),
+    repos: Optional[str] = Query(None),
     uid: str = Depends(get_current_uid)
 ):
     """
-    Fetch fresh GitHub profile data for authenticated user.
-    
-    Retrieves real-time data from GitHub API without caching.
+    Fetch fresh GitHub profile data or repositories for authenticated user.
     """
     try:
         collection = await get_users_collection()
@@ -211,23 +211,37 @@ async def get_github_profile(
         encrypted_token = github_info.get("access_token")
 
         if not encrypted_token:
-            logger.info("GitHub not connected for user", extra={"uid": uid})
+            if repos is not None:
+                return {"repos": [], "has_more": False}
             return {
                 "connected": False,
                 "data": None,
             }
 
-        # Decrypt and fetch fresh GitHub data
+        # Decrypt and fetch data
         plain_token = decrypt_token(encrypted_token)
         if not plain_token:
             logger.error("Failed to decrypt GitHub token", extra={"uid": uid})
             raise HTTPException(status_code=500, detail="Failed to decrypt GitHub token")
 
-        github_data = await GitHubService.fetch_user_profile(plain_token, page=page, per_page=per_page)
- 
+        repos_only = repos is not None
+        github_data = await GitHubService.fetch_user_profile(
+            plain_token, 
+            page=page, 
+            per_page=per_page,
+            repos_only=repos_only
+        )
+
+        if repos_only:
+            logger.info(
+                "GitHub repositories retrieved for selection", 
+                extra={"uid": uid, "repo_count": len(github_data.get("repos", [])), "page": page}
+            )
+            return github_data
+
         logger.info(
-            "GitHub profile retrieved",
-            extra={"uid": uid, "username": github_data.get("identity", {}).get("username")},
+            "GitHub profile retrieved successfully",
+            extra={"uid": uid, "username": github_data.get("identity", {}).get("username")}
         )
 
         return {
@@ -238,8 +252,8 @@ async def get_github_profile(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to fetch GitHub profile", exc_info=True, extra={"uid": uid})
-        raise HTTPException(status_code=500, detail="Failed to fetch GitHub profile")
+        logger.error("Failed to fetch GitHub data", exc_info=True, extra={"uid": uid})
+        raise HTTPException(status_code=500, detail="Failed to fetch GitHub data")
 
 
 @router.post("/me/upload-avatar")

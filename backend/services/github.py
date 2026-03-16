@@ -38,18 +38,14 @@ class GitHubService:
             return None
 
     @staticmethod
-    async def fetch_user_profile(access_token: str, page: int = 1, per_page: int = 9) -> Dict[str, Any]:
+    async def fetch_user_profile(
+        access_token: str, 
+        page: int = 1, 
+        per_page: int = 9,
+        repos_only: bool = False
+    ) -> Dict[str, Any]:
         """
-        Fetch comprehensive GitHub user profile data.
-        
-        Args:
-            access_token: GitHub OAuth access token
-            
-        Returns:
-            Dictionary containing user profile data
-            
-        Raises:
-            Exception: If GitHub API calls fail
+        Fetch GitHub user profile or just repositories.
         """
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -58,19 +54,36 @@ class GitHubService:
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
+                if repos_only:
+                    # Optimized path for repo selection
+                    repo_data = await GitHubService._fetch_user_repositories(client, headers, page=page, per_page=per_page)
+                    raw_repos = repo_data.get("repositories", [])
+                    
+                    repos = []
+                    for repo in raw_repos:
+                        full_name = repo.get("full_name", "")
+                        repos.append({
+                            "repo_url": repo.get("html_url"),
+                            "repo_name": repo.get("name"),
+                            "repo_owner": full_name.split("/")[0] if "/" in full_name else None,
+                        })
+                    
+                    logger.info(f"GitHub repositories fetched (page {page})", extra={"count": len(repos)})
+                    return {
+                        "repos": repos,
+                        "has_more": len(raw_repos) == per_page
+                    }
+
+                # Full profile path
                 profile_data = await GitHubService._fetch_user_identity(client, headers)
                 profile_data["emails"] = await GitHubService._fetch_user_emails(client, headers)
                 profile_data["repositories"] = await GitHubService._fetch_user_repositories(client, headers, page=page, per_page=per_page)
                 profile_data["activity"] = await GitHubService._fetch_user_activity(client, headers, profile_data["identity"]["username"])
-
-                logger.info(
-                    "GitHub profile fetched successfully",
-                    extra={"username": profile_data["identity"]["username"]},
-                )
+                logger.info("GitHub profile fetched successfully", extra={"username": profile_data["identity"]["username"]})
                 return profile_data
 
         except Exception as e:
-            logger.error("Failed to fetch GitHub profile", exc_info=True)
+            logger.error(f"Failed to fetch GitHub {'repos' if repos_only else 'profile'}", exc_info=True)
             raise
 
     @staticmethod
@@ -91,7 +104,7 @@ class GitHubService:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 profile_data = await GitHubService._fetch_user_identity(client, headers, username)
-                profile_data["emails"] = [] # Public profiles don't expose emails via API easily
+                profile_data["emails"] = []
                 profile_data["repositories"] = await GitHubService._fetch_user_repositories(client, headers, username, page=page, per_page=per_page)
                 profile_data["activity"] = await GitHubService._fetch_user_activity(client, headers, username)
 
