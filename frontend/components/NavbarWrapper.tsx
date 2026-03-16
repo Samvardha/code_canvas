@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Navbar } from "./Navbar";
+import { Navbar } from "./navbar";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function NavbarWrapper({ children }: { children: React.ReactNode }) {

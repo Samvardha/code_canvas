@@ -20,9 +20,11 @@ import {
   ChevronDown,
   Maximize,
   Sparkles,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/Button";
 import Toast from "@/components/Toast";
+import { aiApi } from "@/lib/api/ai";
 import {
   createPost,
   getPost,
@@ -195,10 +197,12 @@ export default function CreatePostPage() {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [isGithubConnected, setIsGithubConnected] = useState(true);
 
-  // Form State
   const [text, setText] = useState("");
   const [link, setLink] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   const [collabMeta, setCollabMeta] = useState({
     title: "",
@@ -468,6 +472,27 @@ export default function CreatePostPage() {
     }
   }, [editId, token]);
 
+  const handleSuggest = async () => {
+    if (!token || !text.trim() || isGenerating) return;
+
+    setIsGenerating(true);
+    setSuggestions([]);
+    try {
+      const results = await aiApi.suggestCaptions(text, token);
+      setSuggestions(results);
+    } catch (error: any) {
+      console.error("AI Generation failed:", error);
+      showToast(error.message || "AI_GENERATION_FAILED");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const applySuggestion = (suggestion: string) => {
+    setText(suggestion);
+    setSuggestions([]);
+  };
+
   const handleSubmit = async () => {
     if (!token) return;
     const errors: string[] = [];
@@ -715,8 +740,57 @@ export default function CreatePostPage() {
                         ? "border-red-500/50"
                         : "border-border"
                     }`}
-                    disabled={loading}
+                    disabled={loading || isGenerating}
                   />
+
+                  {/* AI Suggestions Box */}
+                  <AnimatePresence>
+                    {suggestions.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                        animate={{ opacity: 1, height: "auto", marginTop: 16 }}
+                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                        className="flex flex-col gap-2 overflow-hidden"
+                      >
+                        <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                          <span className="text-[10px] font-mono font-bold text-accent uppercase tracking-widest flex items-center gap-2">
+                            <Sparkles className="w-3 h-3" />
+                            AI_REWORK_OPTIONS
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSuggestions([])}
+                            className="text-text-secondary hover:text-white transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="flex flex-col gap-4 py-4">
+                          {suggestions.map((s, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => applySuggestion(s)}
+                              className="group relative flex flex-col gap-3 text-left bg-black/40 border border-white/5 p-5 hover:border-accent/40 transition-all overflow-hidden cursor-pointer"
+                            >
+                              <div className="absolute top-0 left-0 w-1 h-full bg-border/50 group-hover:bg-accent transition-colors" />
+                              <div className="flex justify-between items-center w-full">
+                                <span className="text-[10px] font-mono font-black text-text-secondary group-hover:text-accent uppercase tracking-widest transition-colors pl-2">
+                                  OPTION_{(idx + 1).toString().padStart(2, '0')}
+                                </span>
+                                <span className="opacity-0 group-hover:opacity-100 text-[9px] font-mono font-bold text-accent uppercase tracking-widest transition-opacity pr-2">
+                                  CLICK_TO_APPLY
+                                </span>
+                              </div>
+                              <p className="text-[13px] text-text-secondary group-hover:text-white font-mono leading-relaxed transition-colors pl-2 pr-2">
+                                {s}
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {selectedCategory !== "event" && isGithubConnected && (
@@ -1417,20 +1491,42 @@ export default function CreatePostPage() {
             </div>
 
             {/* Toolbar */}
-            <div className="p-6 border-t border-border/50 flex items-center justify-between bg-background/50 shrink-0 transition-colors">
-              <div className="flex gap-2 items-center group cursor-pointer">
-                <Sparkles className="w-4 h-4 text-accent group-hover:text-white transition-colors" />
-                <span className="text-[10px] font-mono font-bold text-accent group-hover:text-white tracking-widest transition-colors uppercase">
-                  WRITE_WITH_AI
-                </span>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                  multiple
-                  accept="image/*,video/*"
-                />
+            <div className="p-6 border-t border-border/50 flex flex-wrap items-center justify-between bg-background/50 shrink-0 transition-colors gap-4">
+              <div className="flex gap-4 items-center">
+                <button
+                  type="button"
+                  onClick={handleSuggest}
+                  disabled={loading || isGenerating || !text.trim()}
+                  className={`flex gap-2 items-center group cursor-pointer transition-colors ${
+                    isGenerating ? "text-accent" : "text-text-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                  }`}
+                >
+                  {isGenerating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 group-hover:text-accent transition-colors" />
+                  )}
+                  <span className={`text-[10px] font-mono font-bold tracking-widest uppercase transition-colors ${
+                    isGenerating ? "" : "group-hover:text-white"
+                  }`}>
+                    {isGenerating ? "PROCESSING..." : "WRITE_WITH_AI"}
+                  </span>
+                </button>
+                <div className="w-px h-4 bg-border/50"></div>
+                <label className="flex gap-2 items-center group cursor-pointer">
+                  <ImageIcon className="w-4 h-4 text-text-secondary group-hover:text-white transition-colors" />
+                  <span className="text-[10px] font-mono font-bold text-text-secondary group-hover:text-white tracking-widest transition-colors uppercase">
+                    ATTACH
+                  </span>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    multiple
+                    accept="image/*,video/*"
+                  />
+                </label>
               </div>
 
               <div className="flex">
