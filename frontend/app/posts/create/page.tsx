@@ -20,7 +20,7 @@ import {
   ChevronDown,
   Maximize,
   Sparkles,
-  RefreshCw
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/Button";
 import Toast from "@/components/Toast";
@@ -426,7 +426,7 @@ export default function CreatePostPage() {
           const post = await getPost(editId, token);
           setText(post.content.text || "");
           setSelectedCategory(post.categories[0] || null);
-          
+
           if (post.collab_meta) {
             setCollabMeta({
               title: post.collab_meta.title || "",
@@ -456,13 +456,14 @@ export default function CreatePostPage() {
           if (post.github) {
             setSelectedRepo(post.github as any);
           }
-          
+
           // Note: and more... existing files are harder to map back to File objects
           // but we can show existing media as previews if needed.
           if (post.content.media?.length) {
-            setPreviews(post.content.media.map(m => ({ url: m.url, type: m.type })));
+            setPreviews(
+              post.content.media.map((m) => ({ url: m.url, type: m.type })),
+            );
           }
-
         } catch (err) {
           console.error("Failed to fetch post for editing:", err);
           showToast("Failed to load post data");
@@ -505,8 +506,10 @@ export default function CreatePostPage() {
     if (selectedCategory === "collab") {
       if (!collabMeta.title) errors.push("collab_title");
       if (!collabMeta.duration) errors.push("collab_duration");
-      if (collabMeta.looking_for.length === 0) errors.push("collab_looking_for");
-      if (collabMeta.requirements.length === 0) errors.push("collab_requirements");
+      if (collabMeta.looking_for.length === 0)
+        errors.push("collab_looking_for");
+      if (collabMeta.requirements.length === 0)
+        errors.push("collab_requirements");
     }
 
     if (selectedCategory === "event") {
@@ -590,7 +593,7 @@ export default function CreatePostPage() {
       } else {
         await createPost(postData, files, token);
       }
-      
+
       setShowSuccessToast(true);
       setTimeout(() => {
         router.push("/explore-feed");
@@ -681,8 +684,8 @@ export default function CreatePostPage() {
                     SELECT_POST_TYPE
                   </label>
                   <p className="text-[9px] font-mono text-accent uppercase italic tracking-wider">
-                    {editId 
-                      ? "> POST_TYPE_IS_LOCKED_FOR_EXISTING_SIGNALS" 
+                    {editId
+                      ? "> POST_TYPE_IS_LOCKED_FOR_EXISTING_SIGNALS"
                       : "> IF NONE SELECTED, BROADCAST WILL BE TAGGED AS GENERAL"}
                   </p>
                 </div>
@@ -693,7 +696,9 @@ export default function CreatePostPage() {
                       <button
                         key={cat}
                         type="button"
-                        onClick={() => !isDisabled && !editId && toggleCategory(cat)}
+                        onClick={() =>
+                          !isDisabled && !editId && toggleCategory(cat)
+                        }
                         disabled={isDisabled || !!editId}
                         className={`flex-1 py-4 px-6 border font-mono text-[11px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-3 mt-4 ${
                           selectedCategory === cat
@@ -776,7 +781,7 @@ export default function CreatePostPage() {
                               <div className="absolute top-0 left-0 w-1 h-full bg-border/50 group-hover:bg-accent transition-colors" />
                               <div className="flex justify-between items-center w-full">
                                 <span className="text-[10px] font-mono font-black text-text-secondary group-hover:text-accent uppercase tracking-widest transition-colors pl-2">
-                                  OPTION_{(idx + 1).toString().padStart(2, '0')}
+                                  OPTION_{(idx + 1).toString().padStart(2, "0")}
                                 </span>
                                 <span className="opacity-0 group-hover:opacity-100 text-[9px] font-mono font-bold text-accent uppercase tracking-widest transition-opacity pr-2">
                                   CLICK_TO_APPLY
@@ -1051,7 +1056,9 @@ export default function CreatePostPage() {
                                 <input
                                   type="text"
                                   value={lookingForInput}
-                                  onFocus={() => clearError("collab_looking_for")}
+                                  onFocus={() =>
+                                    clearError("collab_looking_for")
+                                  }
                                   onChange={(e) => {
                                     setLookingForInput(
                                       e.target.value.toUpperCase(),
@@ -1066,7 +1073,9 @@ export default function CreatePostPage() {
                                     }
                                   }}
                                   className={`flex-1 bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-border focus:ring-1 focus:ring-accent outline-none transition-colors ${
-                                    validationErrors.includes("collab_looking_for")
+                                    validationErrors.includes(
+                                      "collab_looking_for",
+                                    )
                                       ? "border-red-500/50"
                                       : "border-border"
                                   }`}
@@ -1113,7 +1122,9 @@ export default function CreatePostPage() {
                                 <input
                                   type="text"
                                   value={requirementsInput}
-                                  onFocus={() => clearError("collab_requirements")}
+                                  onFocus={() =>
+                                    clearError("collab_requirements")
+                                  }
                                   onChange={(e) => {
                                     setRequirementsInput(
                                       e.target.value.toUpperCase(),
@@ -1128,7 +1139,9 @@ export default function CreatePostPage() {
                                     }
                                   }}
                                   className={`flex-1 bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-border focus:ring-1 focus:ring-accent outline-none transition-colors ${
-                                    validationErrors.includes("collab_requirements")
+                                    validationErrors.includes(
+                                      "collab_requirements",
+                                    )
                                       ? "border-red-500/50"
                                       : "border-border"
                                   }`}
@@ -1243,17 +1256,24 @@ export default function CreatePostPage() {
                             </label>
                             <button
                               type="button"
-                              onClick={() => !editId && setShowModeDropdown(!showModeDropdown)}
+                              onClick={() =>
+                                !editId &&
+                                setShowModeDropdown(!showModeDropdown)
+                              }
                               disabled={!!editId}
                               className={`w-full bg-background/30 border p-4 text-sm font-mono text-white flex items-center justify-between hover:border-accent/40 transition-colors mt-4 cursor-pointer ${
-                                !!editId ? "opacity-50 cursor-not-allowed border-border/50" : ""
+                                !!editId
+                                  ? "opacity-50 cursor-not-allowed border-border/50"
+                                  : ""
                               } ${
                                 validationErrors.includes("event_mode")
                                   ? "border-red-500/50"
                                   : "border-border"
                               }`}
                             >
-                              <span className="uppercase">{eventMeta.mode}</span>
+                              <span className="uppercase">
+                                {eventMeta.mode}
+                              </span>
                               <ChevronDown
                                 className={`w-4 h-4 transition-transform ${showModeDropdown ? "rotate-180" : ""}`}
                               />
@@ -1269,26 +1289,25 @@ export default function CreatePostPage() {
                                 >
                                   <div className="max-h-60 overflow-y-auto hide-scrollbar">
                                     {["online", "offline"].map((mode) => (
-                                        <button
-                                          key={mode}
-                                          type="button"
-                                          onClick={() => {
-                                            setEventMeta({
-                                              ...eventMeta,
-                                              mode,
-                                            });
-                                            setShowModeDropdown(false);
-                                          }}
-                                          className={`w-full text-left p-4 text-xs font-mono uppercase transition-colors hover:bg-white/5 ${
-                                            eventMeta.mode === mode
-                                              ? "text-accent bg-accent/5"
-                                              : "text-text-secondary"
-                                          }`}
-                                        >
-                                          {mode}
-                                        </button>
-                                      ),
-                                    )}
+                                      <button
+                                        key={mode}
+                                        type="button"
+                                        onClick={() => {
+                                          setEventMeta({
+                                            ...eventMeta,
+                                            mode,
+                                          });
+                                          setShowModeDropdown(false);
+                                        }}
+                                        className={`w-full text-left p-4 text-xs font-mono uppercase transition-colors hover:bg-white/5 ${
+                                          eventMeta.mode === mode
+                                            ? "text-accent bg-accent/5"
+                                            : "text-text-secondary"
+                                        }`}
+                                      >
+                                        {mode}
+                                      </button>
+                                    ))}
                                   </div>
                                 </motion.div>
                               )}
@@ -1325,7 +1344,9 @@ export default function CreatePostPage() {
                               }}
                               disabled={!!editId}
                               className={`w-full bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-white/20 focus:ring-1 focus:ring-accent outline-none transition-colors mt-2 ${
-                                !!editId ? "opacity-50 cursor-not-allowed border-border/50" : ""
+                                !!editId
+                                  ? "opacity-50 cursor-not-allowed border-border/50"
+                                  : ""
                               } ${
                                 validationErrors.includes("event_start")
                                   ? "border-red-500/50"
@@ -1364,7 +1385,9 @@ export default function CreatePostPage() {
                               }}
                               disabled={!!editId}
                               className={`w-full bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-white/20 focus:ring-1 focus:ring-accent outline-none transition-colors mt-2 ${
-                                !!editId ? "opacity-50 cursor-not-allowed border-border/50" : ""
+                                !!editId
+                                  ? "opacity-50 cursor-not-allowed border-border/50"
+                                  : ""
                               } ${
                                 validationErrors.includes("event_end")
                                   ? "border-red-500/50"
@@ -1492,42 +1515,29 @@ export default function CreatePostPage() {
 
             {/* Toolbar */}
             <div className="p-6 border-t border-border/50 flex flex-wrap items-center justify-between bg-background/50 shrink-0 transition-colors gap-4">
-              <div className="flex gap-4 items-center">
-                <button
-                  type="button"
-                  onClick={handleSuggest}
-                  disabled={loading || isGenerating || !text.trim()}
-                  className={`flex gap-2 items-center group cursor-pointer transition-colors ${
-                    isGenerating ? "text-accent" : "text-text-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              <button
+                type="button"
+                onClick={handleSuggest}
+                disabled={loading || isGenerating || !text.trim()}
+                className={`flex gap-2 items-center group cursor-pointer transition-colors ${
+                  isGenerating
+                    ? "text-accent"
+                    : "text-text-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                }`}
+              >
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4 group-hover:text-accent transition-colors" />
+                )}
+                <span
+                  className={`text-[10px] font-mono font-bold tracking-widest uppercase transition-colors ${
+                    isGenerating ? "" : "group-hover:text-white"
                   }`}
                 >
-                  {isGenerating ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-4 h-4 group-hover:text-accent transition-colors" />
-                  )}
-                  <span className={`text-[10px] font-mono font-bold tracking-widest uppercase transition-colors ${
-                    isGenerating ? "" : "group-hover:text-white"
-                  }`}>
-                    {isGenerating ? "PROCESSING..." : "WRITE_WITH_AI"}
-                  </span>
-                </button>
-                <div className="w-px h-4 bg-border/50"></div>
-                <label className="flex gap-2 items-center group cursor-pointer">
-                  <ImageIcon className="w-4 h-4 text-text-secondary group-hover:text-white transition-colors" />
-                  <span className="text-[10px] font-mono font-bold text-text-secondary group-hover:text-white tracking-widest transition-colors uppercase">
-                    ATTACH
-                  </span>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    multiple
-                    accept="image/*,video/*"
-                  />
-                </label>
-              </div>
+                  {isGenerating ? "PROCESSING..." : "WRITE_WITH_AI"}
+                </span>
+              </button>
 
               <div className="flex">
                 <button
@@ -1545,8 +1555,10 @@ export default function CreatePostPage() {
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : editId ? (
+                    "UPDATE"
                   ) : (
-                    editId ? "UPDATE" : "BROADCAST"
+                    "BROADCAST"
                   )}
                 </Button>
               </div>
@@ -1574,7 +1586,9 @@ export default function CreatePostPage() {
 
       <Toast
         isVisible={showSuccessToast}
-        message={editId ? "SIGNAL_UPDATED_SUCCESSFULLY" : "SIGNAL_BROADCAST_SUCCESSFUL"}
+        message={
+          editId ? "SIGNAL_UPDATED_SUCCESSFULLY" : "SIGNAL_BROADCAST_SUCCESSFUL"
+        }
         onClose={() => setShowSuccessToast(false)}
       />
       <Toast
