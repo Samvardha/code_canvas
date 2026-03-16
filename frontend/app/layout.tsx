@@ -23,6 +23,11 @@ export const metadata: Metadata = {
   title: "Tech Connect - Developer Network",
   description:
     "A developer collaboration network where you can find collaborators, share projects, and build together.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
 };
 
 export default function RootLayout({
