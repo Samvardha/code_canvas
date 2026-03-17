@@ -16,11 +16,12 @@ import {
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { deletePost } from "@/lib/api/posts";
+import { deletePost, toggleLike } from "@/lib/api/posts";
 import Popup from "@/components/Popup";
 import { MenuDropdown } from "./MenuDropdown";
 import Toast from "@/components/Toast";
 import { createPortal } from "react-dom";
+import { CommentSection } from "./CommentSection";
 
 interface PostCardProps {
   postId: string;
@@ -42,6 +43,7 @@ interface PostCardProps {
   categories?: string[];
   collabMeta?: any;
   eventMeta?: any;
+  isLiked?: boolean;
 }
 
 export function PostCard({
@@ -64,6 +66,7 @@ export function PostCard({
   categories = [],
   collabMeta,
   eventMeta,
+  isLiked = false,
 }: PostCardProps) {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -71,6 +74,14 @@ export function PostCard({
   const [showDeletePopup, setShowDeletePopup] = useState(false);
   const [errorToast, setErrorToast] = useState({ isVisible: false, message: "" });
   const [selectedMedia, setSelectedMedia] = useState<{ url: string; type: string } | null>(null);
+  
+  const [currentLikes, setCurrentLikes] = useState(likes);
+  const [currentCommentsCount, setCurrentCommentsCount] = useState(comments);
+  const [isCommentsExpanded, setIsCommentsExpanded] = useState(false);
+  const [isLikedInternal, setIsLikedInternal] = useState(isLiked);
+  const [isLiking, setIsLiking] = useState(false);
+  const [direction, setDirection] = useState(1);
+  const [commentDirection, setCommentDirection] = useState(1);
   const menuRef = useRef<HTMLDivElement>(null);
   
   const isCollab = categories.includes("collab");
@@ -96,6 +107,18 @@ export function PostCard({
     }
     return () => { document.body.style.overflow = "unset"; };
   }, [selectedMedia]);
+
+  useEffect(() => {
+    setCurrentLikes(likes);
+  }, [likes]);
+
+  useEffect(() => {
+    setIsLikedInternal(isLiked);
+  }, [isLiked]);
+
+  useEffect(() => {
+    setCurrentCommentsCount(comments);
+  }, [comments]);
 
   const confirmDelete = async () => {
     if (!token || isDeleting) return;
@@ -145,6 +168,35 @@ export function PostCard({
       if ((err as Error).name !== "AbortError") {
         console.error("Error sharing:", err);
       }
+    }
+  };
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!token || isLiking) return;
+
+    // Optimistic UI update
+    const previousLikes = currentLikes;
+    const previousIsLiked = isLikedInternal;
+    
+    setDirection(previousIsLiked ? -1 : 1);
+    setIsLikedInternal(!previousIsLiked);
+    setCurrentLikes(prev => previousIsLiked ? prev - 1 : prev + 1);
+    setIsLiking(true);
+
+    try {
+      const result = await toggleLike(postId, token);
+      if (result.success) {
+        setIsLikedInternal(result.liked);
+        setCurrentLikes(result.likes_count);
+      }
+    } catch (err) {
+      console.error("Failed to toggle like:", err);
+      setIsLikedInternal(previousIsLiked);
+      setCurrentLikes(previousLikes);
+      setErrorToast({ isVisible: true, message: "LIKE_ACTION_FAILED" });
+    } finally {
+      setIsLiking(false);
     }
   };
 
@@ -453,32 +505,84 @@ export function PostCard({
         </div>
       )}
 
-      {/* Footer / Stats */}
-      <div className="p-4 sm:p-6 flex items-center justify-between relative z-10">
-        <div className="flex items-center gap-8">
-          <button className="flex items-center gap-2 text-text-secondary hover:text-accent transition-all duration-300 cursor-pointer group/stat active:scale-95">
-            <div className="p-2 hover:bg-accent/5 rounded-full transition-colors">
-              <Heart className="w-4 h-4 group-hover/stat:fill-accent" />
-            </div>
-            <span className="text-[11px] font-mono font-black group-hover/stat:text-accent">{likes}</span>
-          </button>
-          <button className="flex items-center gap-2 text-text-secondary hover:text-white transition-all duration-300 cursor-pointer group/stat active:scale-95">
-            <div className="p-2 hover:bg-white/5 rounded-full transition-colors">
-              <MessageCircle className="w-4 h-4" />
-            </div>
-            <span className="text-[11px] font-mono font-black group-hover/stat:text-white">{comments}</span>
-          </button>
-          <button 
-            onClick={handleShare}
-            className="flex items-center gap-2 text-text-secondary hover:text-white transition-all duration-300 cursor-pointer group active:scale-95"
-          >
-            <div className="p-2 hover:bg-white/5 rounded-full transition-colors">
-              <Share2 className="w-4 h-4" />
-            </div>
-          </button>
+      {/* Footer / Stats & Comments */}
+      <div className="p-4 sm:p-6 flex flex-col gap-6 relative z-10">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <button 
+              onClick={handleLike}
+              disabled={isLiking}
+              className={`flex items-center gap-0 transition-all duration-300 cursor-pointer group/stat active:scale-90 ${isLikedInternal ? "text-accent" : "text-text-secondary hover:text-accent"}`}
+            >
+              <div className={`p-2 rounded-full transition-colors ${isLikedInternal ? "bg-accent/5" : "hover:bg-accent/5"}`}>
+                <motion.div
+                  animate={isLikedInternal ? { scale: [1, 1.4, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                >
+                  <Heart className={`w-5 h-5 ${isLikedInternal ? "fill-accent text-accent" : "group-hover/stat:fill-accent"}`} />
+                </motion.div>
+              </div>
+              <div className="overflow-hidden relative h-[18px] flex items-center">
+                <AnimatePresence mode="popLayout" initial={false}>
+                  <motion.span
+                    key={currentLikes}
+                    initial={{ y: direction * 15, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: -direction * 15, opacity: 0 }}
+                    transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+                    className="text-[13px] font-mono font-black block"
+                  >
+                    {currentLikes}
+                  </motion.span>
+                </AnimatePresence>
+              </div>
+            </button>
+            
+            <button 
+              onClick={() => setIsCommentsExpanded(!isCommentsExpanded)}
+              className={`flex items-center gap-0 transition-all duration-300 cursor-pointer group/stat active:scale-95 ${isCommentsExpanded ? "text-accent" : "text-text-secondary hover:text-white"}`}
+            >
+              <div className={`p-2 rounded-full transition-colors ${isCommentsExpanded ? "bg-accent/5" : "hover:bg-white/5"}`}>
+                <MessageCircle className={`w-5 h-5 ${isCommentsExpanded ? "fill-accent/20" : ""}`} />
+              </div>
+              <div className="overflow-hidden relative h-[18px] flex items-center">
+                <AnimatePresence mode="popLayout" initial={false}>
+                  <motion.span
+                    key={currentCommentsCount}
+                    initial={{ y: commentDirection * 15, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: -commentDirection * 15, opacity: 0 }}
+                    transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+                    className="text-[13px] font-mono font-black block"
+                  >
+                    {currentCommentsCount}
+                  </motion.span>
+                </AnimatePresence>
+              </div>
+            </button>
+            
+            <button 
+              onClick={handleShare}
+              className="flex items-center gap-0 text-text-secondary hover:text-white transition-all duration-300 cursor-pointer group active:scale-95"
+            >
+              <div className="p-2 hover:bg-white/5 rounded-full transition-colors">
+                <Share2 className="w-5 h-5" />
+              </div>
+            </button>
+          </div>
+          <div className="flex-1" />
         </div>
-        
-        <div className="flex-1" />
+
+        <CommentSection 
+          postId={postId}
+          token={token}
+          currentUserId={currentUserId}
+          isExpanded={isCommentsExpanded}
+          onCommentsCountChange={(delta) => {
+            setCommentDirection(delta > 0 ? 1 : -1);
+            setCurrentCommentsCount(prev => prev + delta);
+          }}
+        />
       </div>
 
       <Popup

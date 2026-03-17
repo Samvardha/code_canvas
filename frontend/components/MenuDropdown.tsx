@@ -18,6 +18,7 @@ interface MenuDropdownProps {
   footerLeft?: string;
   footerRight?: string;
   className?: string;
+  onClose?: () => void;
 }
 
 export function MenuDropdown({
@@ -26,8 +27,20 @@ export function MenuDropdown({
   footerLeft,
   footerRight,
   className = "",
+  onClose,
 }: MenuDropdownProps) {
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
   
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        onClose?.();
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
+
   const animation = {
     initial: { height: 0, opacity: 0 },
     animate: { height: "auto", opacity: 1 },
@@ -44,7 +57,8 @@ export function MenuDropdown({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={animation.initial}
+           ref={dropdownRef}
+           initial={animation.initial}
           animate={animation.animate}
           exit={animation.exit}
           transition={animation.transition}

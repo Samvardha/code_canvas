@@ -1,14 +1,14 @@
 import logging
 from datetime import datetime
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any
 from bson import ObjectId
-from utils.database import get_posts_collection, get_users_collection
+from utils.database import get_posts_collection, get_users_collection, get_post_likes_collection
 from utils.cloudinary_utils import delete_media
-from models.post import PostCreateRequest, PostResponse, Category
-
-logger = logging.getLogger(__name__)
+from models.post import PostCreateRequest, Category
 
 from utils.serialization import prepare_for_mongo
+
+logger = logging.getLogger(__name__)
 
 class PostService:
     """Service for post management operations."""
@@ -39,6 +39,7 @@ class PostService:
 
             result = await posts_collection.insert_one(post_doc)
             post_doc["_id"] = str(result.inserted_id)
+            post_doc["is_liked"] = False
 
             # Increment user's posts_count
             await users_collection.update_one(
@@ -49,17 +50,18 @@ class PostService:
             logger.info("Post created successfully", extra={"post_id": post_doc["_id"], "author_id": author_id})
             return post_doc
 
-        except Exception as e:
+        except Exception:
             logger.error("Failed to create post", exc_info=True, extra={"author_id": author_id})
             raise
 
     @staticmethod
-    async def fetch_post(post_id: str) -> Optional[Dict[str, Any]]:
+    async def fetch_post(post_id: str, current_user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
-        Fetch a single post by ID with author info.
+        Fetch a single post by ID with author info and like status.
         """
         try:
             posts_collection = await get_posts_collection()
+            post_likes = await get_post_likes_collection()
             
             pipeline = [
                 {"$match": {"_id": ObjectId(post_id)}},
@@ -101,19 +103,29 @@ class PostService:
                     "bio": author.get("profile", {}).get("bio")
                 }
                 
+            # Check if current user liked the post
+            post["is_liked"] = False
+            if current_user_id:
+                like = await post_likes.find_one({
+                    "post_id": ObjectId(post_id),
+                    "user_id": current_user_id
+                })
+                post["is_liked"] = bool(like)
+
             return post
 
-        except Exception as e:
+        except Exception:
             logger.error("Failed to fetch post", exc_info=True, extra={"post_id": post_id})
             return None
 
     @staticmethod
-    async def fetch_feed(categories: Optional[List[Category]] = None, userId: Optional[str] = None, offset: int = 0, limit: int = 10) -> Dict[str, Any]:
+    async def fetch_feed(categories: Optional[List[Category]] = None, userId: Optional[str] = None, offset: int = 0, limit: int = 10, current_user_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Fetch posts feed with pagination and optional filters.
         """
         try:
             posts_collection = await get_posts_collection()
+            post_likes = await get_post_likes_collection()
             
             query = {}
             if categories:
@@ -160,6 +172,16 @@ class PostService:
                         "avatar_url": author.get("profile", {}).get("avatar_url"),
                         "bio": author.get("profile", {}).get("bio")
                     }
+                
+                # Check if current user liked this post
+                post["is_liked"] = False
+                if current_user_id:
+                    like = await post_likes.find_one({
+                        "post_id": ObjectId(post["_id"]),
+                        "user_id": current_user_id
+                    })
+                    post["is_liked"] = bool(like)
+                    
                 posts.append(post)
                 
             return {
@@ -168,7 +190,7 @@ class PostService:
                 "has_more": offset + len(posts) < total
             }
 
-        except Exception as e:
+        except Exception:
             logger.error("Failed to fetch feed", exc_info=True)
             raise
 
@@ -203,9 +225,9 @@ class PostService:
             
             await posts_collection.update_one({"_id": ObjectId(post_id)}, update_doc)
             
-            return await PostService.fetch_post(post_id)
+            return await PostService.fetch_post(post_id, current_user_id=author_id)
 
-        except Exception as e:
+        except Exception:
             logger.error("Failed to update post", exc_info=True, extra={"post_id": post_id})
             raise
 
@@ -243,6 +265,62 @@ class PostService:
             
             return True
 
-        except Exception as e:
+        except Exception:
             logger.error("Failed to delete post", exc_info=True, extra={"post_id": post_id})
+            raise
+
+    @staticmethod
+    async def toggle_like(post_id: str, user_id: str) -> Dict[str, Any]:
+        """
+        Toggle like on a post.
+        """
+        try:
+            post_likes = await get_post_likes_collection()
+            posts = await get_posts_collection()
+
+            # Check if already liked
+            existing = await post_likes.find_one({
+                "post_id": ObjectId(post_id),
+                "user_id": user_id
+            })
+
+            if existing:
+                # UNLIKE
+                await post_likes.delete_one({"_id": existing["_id"]})
+                
+                # Decrement likes count
+                result = await posts.find_one_and_update(
+                    {"_id": ObjectId(post_id)},
+                    {"$inc": {"stats.likes_count": -1}},
+                    return_document=True
+                )
+                
+                updated_count = result.get("stats", {}).get("likes_count", 0) if result else 0
+                return {
+                    "liked": False,
+                    "likes_count": updated_count
+                }
+            else:
+                # LIKE
+                await post_likes.insert_one({
+                    "post_id": ObjectId(post_id),
+                    "user_id": user_id,
+                    "created_at": datetime.utcnow()
+                })
+
+                # Increment likes count
+                result = await posts.find_one_and_update(
+                    {"_id": ObjectId(post_id)},
+                    {"$inc": {"stats.likes_count": 1}},
+                    return_document=True
+                )
+
+                updated_count = result.get("stats", {}).get("likes_count", 0) if result else 0
+                return {
+                    "liked": True,
+                    "likes_count": updated_count
+                }
+
+        except Exception:
+            logger.error("Failed to toggle like", exc_info=True, extra={"post_id": post_id, "user_id": user_id})
             raise

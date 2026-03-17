@@ -1,13 +1,13 @@
 import json
 import logging
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Query
-from fastapi.responses import JSONResponse
+
 from utils.auth import get_current_uid
 from services.post import PostService
 from models.post import PostCreateRequest, PostResponse, FeedResponse, Category
 from utils.cloudinary_utils import upload_media
-from utils.database import get_posts_collection
+
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ async def create_post(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.error("Failed to create post", exc_info=True, extra={"uid": uid})
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -85,7 +85,7 @@ async def get_explore_feed(
     uid: str = Depends(get_current_uid)
 ):
     """Get all posts, latest first."""
-    return await PostService.fetch_feed(offset=offset, limit=limit)
+    return await PostService.fetch_feed(offset=offset, limit=limit, current_user_id=uid)
 
 
 @router.get("/feed/collab", response_model=FeedResponse)
@@ -95,7 +95,7 @@ async def get_collab_feed(
     uid: str = Depends(get_current_uid)
 ):
     """Get only collab posts."""
-    return await PostService.fetch_feed(categories=[Category.COLLAB], offset=offset, limit=limit)
+    return await PostService.fetch_feed(categories=[Category.COLLAB], offset=offset, limit=limit, current_user_id=uid)
 
 
 @router.get("/feed/events", response_model=FeedResponse)
@@ -105,7 +105,7 @@ async def get_events_feed(
     uid: str = Depends(get_current_uid)
 ):
     """Get only event posts."""
-    return await PostService.fetch_feed(categories=[Category.EVENT], offset=offset, limit=limit)
+    return await PostService.fetch_feed(categories=[Category.EVENT], offset=offset, limit=limit, current_user_id=uid)
 
 
 @router.get("/user/{userId}", response_model=FeedResponse)
@@ -116,7 +116,7 @@ async def get_user_posts(
     uid: str = Depends(get_current_uid)
 ):
     """Get posts by a specific user."""
-    return await PostService.fetch_feed(userId=userId, offset=offset, limit=limit)
+    return await PostService.fetch_feed(userId=userId, offset=offset, limit=limit, current_user_id=uid)
 
 
 @router.get("/{postId}", response_model=PostResponse)
@@ -124,7 +124,7 @@ async def get_single_post(postId: str, uid: str = Depends(get_current_uid)):
     """Get a single post by ID."""
     from bson.errors import InvalidId
     try:
-        post = await PostService.fetch_post(postId)
+        post = await PostService.fetch_post(postId, current_user_id=uid)
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
         return post
@@ -166,3 +166,20 @@ async def delete_post(postId: str, uid: str = Depends(get_current_uid)):
         if str(e) == "Unauthorized":
             raise HTTPException(status_code=403, detail="You can only delete your own posts")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{postId}/like")
+async def toggle_post_like(
+    postId: str,
+    uid: str = Depends(get_current_uid)
+):
+    """Toggle like on a post."""
+    try:
+        result = await PostService.toggle_like(postId, uid)
+        return {
+            "success": True,
+            **result
+        }
+    except Exception:
+        logger.error(f"Failed to toggle like for post {postId}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
