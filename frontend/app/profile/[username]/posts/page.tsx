@@ -90,7 +90,9 @@ export default function UserPostsPage() {
                 timestamp={new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 date={new Date(post.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
                 content={post.content.text || ""}
-                imageUrl={post.content.media?.[0]?.url}
+                links={post.content.links}
+                media={post.content.media}
+                github={post.github}
                 likes={post.stats.likes_count}
                 comments={post.stats.comments_count}
                 categories={post.categories}

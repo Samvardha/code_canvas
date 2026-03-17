@@ -2,7 +2,10 @@ import os
 import logging
 import json
 import time
+import asyncio
+import re
 from typing import List, Optional, Dict
+
 from google import genai
 from google.genai import types
 from cachetools import TTLCache
@@ -14,30 +17,40 @@ logger = logging.getLogger(__name__)
 
 # Initialize Gemini Client
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY not configured")
+
+client = genai.Client(api_key=GEMINI_API_KEY)
+
 
 class AIService:
     """Service for handling AI-powered features using Gemini."""
-    
-    _suggestion_cache = TTLCache(maxsize=100, ttl=3600)
-    _rate_limits = {} 
-    MAX_RPM_PER_USER = 3 
+
+    # Cache AI responses for 1 hour
+    _suggestion_cache = TTLCache(maxsize=200, ttl=3600)
+
+    # Rate limiter cache (auto cleans inactive users)
+    _rate_limits = TTLCache(maxsize=5000, ttl=120)
+
+    MAX_RPM_PER_USER = 3
 
     @staticmethod
     def _check_rate_limit(uid: str) -> bool:
         now = time.time()
+
         user_history = AIService._rate_limits.get(uid, [])
         user_history = [t for t in user_history if now - t < 60]
+
         if len(user_history) >= AIService.MAX_RPM_PER_USER:
             return False
+
         user_history.append(now)
         AIService._rate_limits[uid] = user_history
         return True
 
     @staticmethod
     async def suggest_captions(uid: str, draft: str, user_context: Dict) -> Optional[List[str]]:
-        if not client:
-            raise Exception("Gemini API Key not configured.")
 
         if not AIService._check_rate_limit(uid):
             raise Exception("Rate limit exceeded. Please wait a minute.")
@@ -45,59 +58,104 @@ class AIService:
         if not draft or len(draft.strip()) < 5:
             return ["Try providing a bit more detail for better suggestions!"]
 
-        cache_key = f"{uid}:{draft}"
+        # Better cache key
+        cache_key = f"{draft}:{json.dumps(user_context, sort_keys=True)}"
+
         if cache_key in AIService._suggestion_cache:
             return AIService._suggestion_cache[cache_key]
 
         try:
-            # 1. Generate Content. Increased tokens to 1024 to prevent truncation.
-            response = client.models.generate_content(
-                model='models/gemini-flash-latest',
-                contents=f"You are a technical developer posting on 'Tech Connect'. Your draft: '{draft}'. Context: {user_context}. Task: Rewrite into 3 EPIC first-person posts (50-60 words each). Return STRICTLY a JSON list of 3 strings.",
+
+            prompt = prompt = f"""
+                You are a passionate software developer posting on a professional developer community called "Tech Connect".
+
+                Your goal is to rewrite the user's draft into engaging first-person posts that sound authentic, thoughtful, and developer-focused.
+
+                USER DRAFT:
+                {draft}
+
+                USER CONTEXT:
+                {user_context}
+
+                TASK:
+                Rewrite the draft into exactly 3 improved posts.
+
+                RULES:
+                - Each post must be 50–60 words.
+                - Write in first person ("I", "my", "we").
+                - Make the tone enthusiastic, reflective, and developer-centric.
+                - Do NOT cut sentences mid-way.
+                - Each post must end with a complete sentence.
+                - Avoid repeating the same phrasing across posts.
+                - Do NOT include markdown, explanations, numbering, or extra text.
+
+                OUTPUT FORMAT (STRICT):
+                Return ONLY valid JSON.
+
+                Example:
+                [
+                "Post 1 text here...",
+                "Post 2 text here...",
+                "Post 3 text here..."
+                ]
+            """
+
+            # Run blocking SDK in thread
+            response = await asyncio.to_thread(
+                client.models.generate_content,
+                model="gemini-2.5-flash",
+                contents=prompt,
                 config=types.GenerateContentConfig(
-                    max_output_tokens=1024, 
+                    max_output_tokens=1024,
                     temperature=0.8,
-                )
+                ),
             )
 
-            text = response.text.strip()
-            
-            # 2. Extract JSON from potential markdown/extraneous text
-            start = text.find('[')
-            end = text.rfind(']')
-            
-            if start != -1:
-                # If we have both brackets, use the content between them
-                if end != -1 and end > start:
-                    json_str = text[start:end+1]
-                else:
-                    # Truncated or missing closing bracket
-                    json_str = text[start:]
-                    # Check if it ends in a middle of a string
-                    if json_str.count('"') % 2 != 0:
-                        # Append a quote and a bracket to attempt a fix
-                        json_str += '"]'
-                    elif not json_str.endswith(']'):
-                        json_str += ']'
-                
+            text = (response.text or "").strip()
+
+            # Extract JSON safely
+            start = text.find("[")
+            end = text.rfind("]")
+
+            if start != -1 and end != -1:
+                json_str = text[start : end + 1]
+
                 try:
                     suggestions = json.loads(json_str)
+
                     if isinstance(suggestions, list):
-                        suggestions = [str(s) for s in suggestions if len(str(s)) > 5]
+                        suggestions = [
+                            str(s).strip()
+                            for s in suggestions
+                            if len(str(s).strip()) > 5
+                        ]
+
                         if suggestions:
-                            AIService._suggestion_cache[cache_key] = suggestions[:3]
-                            return suggestions[:3]
+                            suggestions = suggestions[:3]
+
+                            AIService._suggestion_cache[cache_key] = suggestions
+                            return suggestions
+
                 except json.JSONDecodeError:
-                    logger.warning(f"Simple JSON repair failed for: {json_str[:50]}...")
-            
-            # Fallback: Extraction using regex or simple split if JSON is totally broken
-            import re
-            lines = re.findall(r'"([^"]*)"', text)
+                    logger.warning("JSON parsing failed, attempting fallback")
+
+            # Fallback extraction
+            lines = re.findall(r'"([^"]+)"', text)
+
             if not lines:
-                lines = [line.strip(' "[]-') for line in text.split('\n') if len(line.strip()) > 10]
-            
-            return lines[:3] if lines else None
+                lines = [
+                    line.strip(' "[]-')
+                    for line in text.split("\n")
+                    if len(line.strip()) > 10
+                ]
+
+            suggestions = lines[:3] if lines else None
+
+            if suggestions:
+                AIService._suggestion_cache[cache_key] = suggestions
+
+            return suggestions
 
         except Exception as e:
             logger.error(f"AI Generation Error: {e}")
-            raise e
+            raise

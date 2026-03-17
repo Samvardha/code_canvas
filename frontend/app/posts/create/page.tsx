@@ -1,8 +1,5 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -20,11 +17,9 @@ import {
   ChevronDown,
   Maximize,
   Sparkles,
-  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/Button";
 import Toast from "@/components/Toast";
-import { aiApi } from "@/lib/api/ai";
 import {
   createPost,
   getPost,
@@ -197,12 +192,10 @@ export default function CreatePostPage() {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [isGithubConnected, setIsGithubConnected] = useState(true);
 
+  // Form State
   const [text, setText] = useState("");
   const [link, setLink] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   const [collabMeta, setCollabMeta] = useState({
     title: "",
@@ -472,27 +465,6 @@ export default function CreatePostPage() {
     }
   }, [editId, token]);
 
-  const handleSuggest = async () => {
-    if (!token || !text.trim() || isGenerating) return;
-
-    setIsGenerating(true);
-    setSuggestions([]);
-    try {
-      const results = await aiApi.suggestCaptions(text, token);
-      setSuggestions(results);
-    } catch (error: any) {
-      console.error("AI Generation failed:", error);
-      showToast(error.message || "AI_GENERATION_FAILED");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const applySuggestion = (suggestion: string) => {
-    setText(suggestion);
-    setSuggestions([]);
-  };
-
   const handleSubmit = async () => {
     if (!token) return;
     const errors: string[] = [];
@@ -674,51 +646,12 @@ export default function CreatePostPage() {
           >
             {/* Scrollable Content */}
             <div className="p-6 space-y-8 bg-surface/50 min-h-[calc(100vh-89px)]">
-              {/* Category Selection */}
-              <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                    SELECT_POST_TYPE
-                  </label>
-                  <p className="text-[9px] font-mono text-accent uppercase italic tracking-wider">
-                    {editId 
-                      ? "> POST_TYPE_IS_LOCKED_FOR_EXISTING_SIGNALS" 
-                      : "> IF NONE SELECTED, BROADCAST WILL BE TAGGED AS GENERAL"}
-                  </p>
-                </div>
-                <div className="flex gap-4">
-                  {["collab", "event"].map((cat) => {
-                    const isDisabled = cat === "collab" && !isGithubConnected;
-                    return (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => !isDisabled && !editId && toggleCategory(cat)}
-                        disabled={isDisabled || !!editId}
-                        className={`flex-1 py-4 px-6 border font-mono text-[11px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-3 mt-4 ${
-                          selectedCategory === cat
-                            ? "border-accent bg-accent/5 text-accent"
-                            : isDisabled || !!editId
-                              ? "border-border/50 bg-background/20 text-text-secondary/30 cursor-not-allowed opacity-50"
-                              : "border-border bg-background/50 text-text-secondary hover:border-text-secondary hover:bg-surface/30"
-                        }`}
-                      >
-                        {cat === "collab" ? (
-                          <Users className="w-4 h-4" />
-                        ) : (
-                          <Calendar className="w-4 h-4" />
-                        )}
-                        {cat}
-                        {isDisabled && (
-                          <span className="text-[8px] normal-case font-normal opacity-60 block">
-                            (GITHUB_LINK_REQUIRED)
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              <CategorySignals
+                selectedCategory={state.selectedCategory}
+                toggleCategory={actions.toggleCategory}
+                isGithubConnected={state.isGithubConnected}
+                editId={state.editId}
+              />
 
               {/* Common Content */}
               <div className="grid grid-cols-1 gap-8">
@@ -740,57 +673,8 @@ export default function CreatePostPage() {
                         ? "border-red-500/50"
                         : "border-border"
                     }`}
-                    disabled={loading || isGenerating}
+                    disabled={loading}
                   />
-
-                  {/* AI Suggestions Box */}
-                  <AnimatePresence>
-                    {suggestions.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                        animate={{ opacity: 1, height: "auto", marginTop: 16 }}
-                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                        className="flex flex-col gap-2 overflow-hidden"
-                      >
-                        <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                          <span className="text-[10px] font-mono font-bold text-accent uppercase tracking-widest flex items-center gap-2">
-                            <Sparkles className="w-3 h-3" />
-                            AI_REWORK_OPTIONS
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setSuggestions([])}
-                            className="text-text-secondary hover:text-white transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                        <div className="flex flex-col gap-4 py-4">
-                          {suggestions.map((s, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => applySuggestion(s)}
-                              className="group relative flex flex-col gap-3 text-left bg-black/40 border border-white/5 p-5 hover:border-accent/40 transition-all overflow-hidden cursor-pointer"
-                            >
-                              <div className="absolute top-0 left-0 w-1 h-full bg-border/50 group-hover:bg-accent transition-colors" />
-                              <div className="flex justify-between items-center w-full">
-                                <span className="text-[10px] font-mono font-black text-text-secondary group-hover:text-accent uppercase tracking-widest transition-colors pl-2">
-                                  OPTION_{(idx + 1).toString().padStart(2, '0')}
-                                </span>
-                                <span className="opacity-0 group-hover:opacity-100 text-[9px] font-mono font-bold text-accent uppercase tracking-widest transition-opacity pr-2">
-                                  CLICK_TO_APPLY
-                                </span>
-                              </div>
-                              <p className="text-[13px] text-text-secondary group-hover:text-white font-mono leading-relaxed transition-colors pl-2 pr-2">
-                                {s}
-                              </p>
-                            </button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
 
                 {selectedCategory !== "event" && isGithubConnected && (
@@ -901,617 +785,65 @@ export default function CreatePostPage() {
                 </div>
               </div>
 
-              {/* Media Upload Section */}
-              <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                  <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                    ATTACH_MEDIA
-                  </label>
-                  <p className="text-[9px] font-mono text-accent uppercase italic tracking-wider">
-                    &gt; PNG/JPEG &lt; 5MB | MP4/WEBM &lt; 50MB
-                  </p>
-                </div>
+              <MediaUpload
+                previews={state.previews}
+                files={state.files}
+                fileInputRef={refs.fileInputRef}
+                loading={state.loading}
+                editId={state.editId}
+                removeFile={actions.removeFile}
+                handleFileChange={actions.handleFileChange}
+              />
 
-                {previews.length === 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full h-40 border-2 border-dashed border-border hover:border-accent/40 bg-background/30 text-text-secondary hover:text-accent transition-all flex flex-col items-center justify-center gap-4 disabled:opacity-50 cursor-pointer"
-                    disabled={loading}
-                  >
-                    <ImageIcon size={28} />
-                    <p className="text-[11px] font-mono uppercase tracking-[0.2em] font-black">
-                      INITIALIZE_MEDIA_UPLOAD
-                    </p>
-                  </button>
-                ) : (
-                  <div className="flex flex-wrap gap-4 items-start">
-                    {previews.map((preview, idx) => (
-                      <div
-                        key={idx}
-                        className="relative h-40 w-auto min-w-[120px] border border-border bg-black/40 overflow-hidden group/preview"
-                      >
-                        {preview.type === "image" ? (
-                          <img
-                            src={preview.url}
-                            alt=""
-                            className="h-full w-auto object-contain"
-                          />
-                        ) : (
-                          <VideoPreview url={preview.url} />
-                        )}
-                        {!loading && (
-                          <button
-                            type="button"
-                            onClick={() => removeFile(idx)}
-                            className="absolute top-2 right-2 z-10 bg-black/80 text-white p-1.5 border border-white/10 opacity-0 group-hover/preview:opacity-100 transition-all hover:bg-red-500 cursor-pointer"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`h-40 w-40 border-2 border-dashed border-border transition-all flex flex-col items-center justify-center gap-2 group ${
-                        files.length >= 10
-                          ? "opacity-50 cursor-not-allowed bg-surface/20 text-text-secondary"
-                          : "hover:border-white/40 bg-surface/50 text-text-secondary hover:text-white cursor-pointer"
-                      }`}
-                      disabled={loading || files.length >= 10}
-                    >
-                      <Plus size={24} />
-                      <span className="text-[9px] font-mono uppercase tracking-widest font-bold text-center px-2">
-                        {files.length >= 10 ? "LIMIT_REACHED" : "ADD_MORE"}
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Dynamic Collab Fields */}
               <AnimatePresence>
-                {selectedCategory === "collab" && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="overflow-hidden"
-                  >
-                    <div className="space-y-4 pt-4 border-t border-border/50">
-                      <div className="p-6 bg-white/3 border border-white/10 space-y-6">
-                        <h3 className="text-[11px] font-mono font-black text-accent uppercase tracking-widest">
-                          COLLABORATION_METADATA
-                        </h3>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-4 col-span-full">
-                            <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                              Project_Title
-                            </label>
-                            <input
-                              type="text"
-                              value={collabMeta.title}
-                              onFocus={() => clearError("collab_title")}
-                              onChange={(e) => {
-                                setCollabMeta({
-                                  ...collabMeta,
-                                  title: e.target.value,
-                                });
-                                clearError("collab_title");
-                              }}
-                              className={`w-full bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-border focus:ring-1 focus:ring-accent outline-none transition-colors mt-2 ${
-                                validationErrors.includes("collab_title")
-                                  ? "border-red-500/50"
-                                  : "border-border"
-                              }`}
-                              placeholder="E.G. AI_POWERED_MARKETPLACE"
-                            />
-                          </div>
-                          <div className="space-y-4">
-                            <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                              Duration
-                            </label>
-                            <div className="relative mt-2">
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                value={collabMeta.duration}
-                                onFocus={() => clearError("collab_duration")}
-                                onChange={(e) => {
-                                  const val = e.target.value.replace(/\D/g, "");
-                                  setCollabMeta({
-                                    ...collabMeta,
-                                    duration: val,
-                                  });
-                                  clearError("collab_duration");
-                                }}
-                                className={`w-full bg-background/30 border p-4 pr-20 text-sm font-mono text-white placeholder:text-border focus:ring-1 focus:ring-accent outline-none transition-colors ${
-                                  validationErrors.includes("collab_duration")
-                                    ? "border-red-500/50"
-                                    : "border-border"
-                                }`}
-                                placeholder="0"
-                              />
-                              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-text-secondary/50 pointer-events-none uppercase">
-                                MONTHS
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-4">
-                            <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                              Looking_For
-                            </label>
-                            <div className="space-y-3 mt-2">
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={lookingForInput}
-                                  onFocus={() => clearError("collab_looking_for")}
-                                  onChange={(e) => {
-                                    setLookingForInput(
-                                      e.target.value.toUpperCase(),
-                                    );
-                                    clearError("collab_looking_for");
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      addTag("looking_for");
-                                      clearError("collab_looking_for");
-                                    }
-                                  }}
-                                  className={`flex-1 bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-border focus:ring-1 focus:ring-accent outline-none transition-colors ${
-                                    validationErrors.includes("collab_looking_for")
-                                      ? "border-red-500/50"
-                                      : "border-border"
-                                  }`}
-                                  placeholder="E.G. BACKEND_DEV"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => addTag("looking_for")}
-                                  className="bg-white/5 border border-white/10 text-white/50 px-4 hover:bg-white/10 hover:border-white/20 transition-colors"
-                                >
-                                  <Plus size={18} />
-                                </button>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {collabMeta.looking_for.map((tag, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-sm"
-                                  >
-                                    <span className="text-[10px] font-mono font-bold text-white/70">
-                                      {tag}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        removeTag("looking_for", idx)
-                                      }
-                                      className="text-white/30 hover:text-white transition-colors"
-                                    >
-                                      <X size={12} />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-4 col-span-full">
-                            <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                              Requirements
-                            </label>
-                            <div className="space-y-3 mt-2">
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={requirementsInput}
-                                  onFocus={() => clearError("collab_requirements")}
-                                  onChange={(e) => {
-                                    setRequirementsInput(
-                                      e.target.value.toUpperCase(),
-                                    );
-                                    clearError("collab_requirements");
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      addTag("requirements");
-                                      clearError("collab_requirements");
-                                    }
-                                  }}
-                                  className={`flex-1 bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-border focus:ring-1 focus:ring-accent outline-none transition-colors ${
-                                    validationErrors.includes("collab_requirements")
-                                      ? "border-red-500/50"
-                                      : "border-border"
-                                  }`}
-                                  placeholder="E.G. REACT_NATIVE"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => addTag("requirements")}
-                                  className="bg-white/5 border border-white/10 text-white/50 px-4 hover:bg-white/10 hover:border-white/20 transition-colors"
-                                >
-                                  <Plus size={18} />
-                                </button>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {collabMeta.requirements.map((tag, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-sm"
-                                  >
-                                    <span className="text-[10px] font-mono font-bold text-white/70">
-                                      {tag}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        removeTag("requirements", idx)
-                                      }
-                                      className="text-white/30 hover:text-white transition-colors"
-                                    >
-                                      <X size={12} />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
+                {state.selectedCategory === "collab" && (
+                  <CollabFields
+                    collabMeta={state.collabMeta}
+                    setCollabMeta={actions.setCollabMeta}
+                    lookingForInput={state.lookingForInput}
+                    setLookingForInput={actions.setLookingForInput}
+                    requirementsInput={state.requirementsInput}
+                    setRequirementsInput={actions.setRequirementsInput}
+                    addTag={actions.addTag}
+                    removeTag={actions.removeTag}
+                    validationErrors={state.validationErrors}
+                    clearError={actions.clearError}
+                  />
                 )}
               </AnimatePresence>
 
-              {/* Dynamic Event Fields */}
               <AnimatePresence>
-                {selectedCategory === "event" && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="overflow-hidden"
-                  >
-                    <div className="space-y-4 pt-4 border-t border-border/50">
-                      <div className="p-6 bg-white/3 border border-white/10 space-y-6">
-                        <h3 className="text-[11px] font-mono font-black text-accent uppercase tracking-widest">
-                          EVENT_METADATA
-                        </h3>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-4 col-span-full">
-                            <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                              Event_Title
-                            </label>
-                            <input
-                              type="text"
-                              value={eventMeta.title}
-                              onFocus={() => clearError("event_title")}
-                              onChange={(e) => {
-                                setEventMeta({
-                                  ...eventMeta,
-                                  title: e.target.value,
-                                });
-                                clearError("event_title");
-                              }}
-                              className={`w-full bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-border focus:ring-1 focus:ring-accent outline-none transition-colors mt-2 ${
-                                validationErrors.includes("event_title")
-                                  ? "border-red-500/50"
-                                  : "border-border"
-                              }`}
-                              placeholder="E.G. TECH_SUMMIT_2024"
-                            />
-                          </div>
-
-                          <div className="space-y-4">
-                            <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                              RSVP_URL
-                            </label>
-                            <input
-                              type="url"
-                              value={eventMeta.rsvp_url}
-                              onFocus={() => clearError("event_rsvp")}
-                              onChange={(e) => {
-                                setEventMeta({
-                                  ...eventMeta,
-                                  rsvp_url: e.target.value,
-                                });
-                                clearError("event_rsvp");
-                              }}
-                              className={`w-full bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-border focus:ring-1 focus:ring-accent outline-none transition-colors mt-2 ${
-                                validationErrors.includes("event_rsvp")
-                                  ? "border-red-500/50"
-                                  : "border-border"
-                              }`}
-                              placeholder="https://event.link/register"
-                            />
-                          </div>
-
-                          <div className="relative" ref={modeDropdownRef}>
-                            <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest block">
-                              Mode
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => !editId && setShowModeDropdown(!showModeDropdown)}
-                              disabled={!!editId}
-                              className={`w-full bg-background/30 border p-4 text-sm font-mono text-white flex items-center justify-between hover:border-accent/40 transition-colors mt-4 cursor-pointer ${
-                                !!editId ? "opacity-50 cursor-not-allowed border-border/50" : ""
-                              } ${
-                                validationErrors.includes("event_mode")
-                                  ? "border-red-500/50"
-                                  : "border-border"
-                              }`}
-                            >
-                              <span className="uppercase">{eventMeta.mode}</span>
-                              <ChevronDown
-                                className={`w-4 h-4 transition-transform ${showModeDropdown ? "rotate-180" : ""}`}
-                              />
-                            </button>
-
-                            <AnimatePresence>
-                              {showModeDropdown && (
-                                <motion.div
-                                  initial={{ opacity: 0, y: 10 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, y: 10 }}
-                                  className="absolute top-full left-0 z-30 w-full mt-2 bg-[#0A0A0A] border border-border shadow-2xl overflow-hidden"
-                                >
-                                  <div className="max-h-60 overflow-y-auto hide-scrollbar">
-                                    {["online", "offline"].map((mode) => (
-                                        <button
-                                          key={mode}
-                                          type="button"
-                                          onClick={() => {
-                                            setEventMeta({
-                                              ...eventMeta,
-                                              mode,
-                                            });
-                                            setShowModeDropdown(false);
-                                          }}
-                                          className={`w-full text-left p-4 text-xs font-mono uppercase transition-colors hover:bg-white/5 ${
-                                            eventMeta.mode === mode
-                                              ? "text-accent bg-accent/5"
-                                              : "text-text-secondary"
-                                          }`}
-                                        >
-                                          {mode}
-                                        </button>
-                                      ),
-                                    )}
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-
-                          <div className="space-y-4">
-                            <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                              Start_At
-                            </label>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={eventMeta.start_at}
-                              onFocus={() => clearError("event_start")}
-                              onChange={(e) => {
-                                if (editId) return;
-                                let val = e.target.value.replace(/\D/g, "");
-                                if (val.length > 8) val = val.slice(0, 8);
-                                let formatted = val;
-                                if (val.length > 2) {
-                                  formatted =
-                                    val.slice(0, 2) + "/" + val.slice(2);
-                                }
-                                if (val.length > 4) {
-                                  formatted =
-                                    formatted.slice(0, 5) + "/" + val.slice(4);
-                                }
-                                setEventMeta({
-                                  ...eventMeta,
-                                  start_at: formatted,
-                                });
-                                clearError("event_start");
-                              }}
-                              disabled={!!editId}
-                              className={`w-full bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-white/20 focus:ring-1 focus:ring-accent outline-none transition-colors mt-2 ${
-                                !!editId ? "opacity-50 cursor-not-allowed border-border/50" : ""
-                              } ${
-                                validationErrors.includes("event_start")
-                                  ? "border-red-500/50"
-                                  : "border-border"
-                              }`}
-                              placeholder="DD/MM/YYYY"
-                            />
-                          </div>
-                          <div className="space-y-4">
-                            <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                              End_At
-                            </label>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={eventMeta.end_at}
-                              onFocus={() => clearError("event_end")}
-                              onChange={(e) => {
-                                if (editId) return;
-                                let val = e.target.value.replace(/\D/g, "");
-                                if (val.length > 8) val = val.slice(0, 8);
-                                let formatted = val;
-                                if (val.length > 2) {
-                                  formatted =
-                                    val.slice(0, 2) + "/" + val.slice(2);
-                                }
-                                if (val.length > 4) {
-                                  formatted =
-                                    formatted.slice(0, 5) + "/" + val.slice(4);
-                                }
-                                setEventMeta({
-                                  ...eventMeta,
-                                  end_at: formatted,
-                                });
-                                clearError("event_end");
-                              }}
-                              disabled={!!editId}
-                              className={`w-full bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-white/20 focus:ring-1 focus:ring-accent outline-none transition-colors mt-2 ${
-                                !!editId ? "opacity-50 cursor-not-allowed border-border/50" : ""
-                              } ${
-                                validationErrors.includes("event_end")
-                                  ? "border-red-500/50"
-                                  : "border-border"
-                              }`}
-                              placeholder="DD/MM/YYYY"
-                            />
-                          </div>
-
-                          {eventMeta.mode === "offline" && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 col-span-full">
-                              <div className="space-y-4">
-                                <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                                  Venue_Address
-                                </label>
-                                <input
-                                  type="text"
-                                  value={eventMeta.venue.address}
-                                  onFocus={() => clearError("event_address")}
-                                  onChange={(e) => {
-                                    setEventMeta({
-                                      ...eventMeta,
-                                      venue: {
-                                        ...eventMeta.venue,
-                                        address: e.target.value,
-                                      },
-                                    });
-                                    clearError("event_address");
-                                  }}
-                                  className={`w-full bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-border focus:ring-1 focus:ring-accent outline-none transition-colors mt-2 ${
-                                    validationErrors.includes("event_address")
-                                      ? "border-red-500/50"
-                                      : "border-border"
-                                  }`}
-                                  placeholder="STREET_OR_BUILDING"
-                                />
-                              </div>
-                              <div className="space-y-4">
-                                <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                                  City
-                                </label>
-                                <input
-                                  type="text"
-                                  value={eventMeta.venue.city}
-                                  onFocus={() => clearError("event_city")}
-                                  onChange={(e) => {
-                                    setEventMeta({
-                                      ...eventMeta,
-                                      venue: {
-                                        ...eventMeta.venue,
-                                        city: e.target.value,
-                                      },
-                                    });
-                                    clearError("event_city");
-                                  }}
-                                  className={`w-full bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-border focus:ring-1 focus:ring-accent outline-none transition-colors mt-2 ${
-                                    validationErrors.includes("event_city")
-                                      ? "border-red-500/50"
-                                      : "border-border"
-                                  }`}
-                                  placeholder="CITY_NAME"
-                                />
-                              </div>
-                              <div className="space-y-4">
-                                <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                                  State
-                                </label>
-                                <input
-                                  type="text"
-                                  value={eventMeta.venue.state}
-                                  onFocus={() => clearError("event_state")}
-                                  onChange={(e) => {
-                                    setEventMeta({
-                                      ...eventMeta,
-                                      venue: {
-                                        ...eventMeta.venue,
-                                        state: e.target.value,
-                                      },
-                                    });
-                                    clearError("event_state");
-                                  }}
-                                  className={`w-full bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-border focus:ring-1 focus:ring-accent outline-none transition-colors mt-2 ${
-                                    validationErrors.includes("event_state")
-                                      ? "border-red-500/50"
-                                      : "border-border"
-                                  }`}
-                                  placeholder="STATE/PROVINCE"
-                                />
-                              </div>
-                              <div className="space-y-4">
-                                <label className="text-[10px] font-mono font-black text-text-secondary uppercase tracking-widest">
-                                  Pincode
-                                </label>
-                                <input
-                                  type="text"
-                                  value={eventMeta.venue.pincode}
-                                  onFocus={() => clearError("event_pincode")}
-                                  onChange={(e) => {
-                                    setEventMeta({
-                                      ...eventMeta,
-                                      venue: {
-                                        ...eventMeta.venue,
-                                        pincode: e.target.value,
-                                      },
-                                    });
-                                    clearError("event_pincode");
-                                  }}
-                                  className={`w-full bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-border focus:ring-1 focus:ring-accent outline-none transition-colors mt-2 ${
-                                    validationErrors.includes("event_pincode")
-                                      ? "border-red-500/50"
-                                      : "border-border"
-                                  }`}
-                                  placeholder="ZIP/POSTAL_CODE"
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
+                {state.selectedCategory === "event" && (
+                  <EventFields
+                    eventMeta={state.eventMeta}
+                    setEventMeta={actions.setEventMeta}
+                    showModeDropdown={state.showModeDropdown}
+                    setShowModeDropdown={actions.setShowModeDropdown}
+                    validationErrors={state.validationErrors}
+                    clearError={actions.clearError}
+                    setValidationErrors={actions.setValidationErrors}
+                    editId={state.editId}
+                    modeDropdownRef={refs.modeDropdownRef}
+                  />
                 )}
               </AnimatePresence>
             </div>
 
             {/* Toolbar */}
-            <div className="p-6 border-t border-border/50 flex flex-wrap items-center justify-between bg-background/50 shrink-0 transition-colors gap-4">
-              <div className="flex gap-4 items-center">
-                <button
-                  type="button"
-                  onClick={handleSuggest}
-                  disabled={loading || isGenerating || !text.trim()}
-                  className={`flex gap-2 items-center group cursor-pointer transition-colors ${
-                    isGenerating ? "text-accent" : "text-text-secondary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                  }`}
-                >
-                  {isGenerating ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-4 h-4 group-hover:text-accent transition-colors" />
-                  )}
-                  <span className={`text-[10px] font-mono font-bold tracking-widest uppercase transition-colors ${
-                    isGenerating ? "" : "group-hover:text-white"
-                  }`}>
-                    {isGenerating ? "PROCESSING..." : "WRITE_WITH_AI"}
-                  </span>
-                </button>
+            <div className="p-6 border-t border-border/50 flex items-center justify-between bg-background/50 shrink-0 transition-colors">
+              <div className="flex gap-2 items-center group cursor-pointer">
+                <Sparkles className="w-4 h-4 text-accent group-hover:text-white transition-colors" />
+                <span className="text-[10px] font-mono font-bold text-accent group-hover:text-white tracking-widest transition-colors uppercase">
+                  WRITE_WITH_AI
+                </span>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  multiple
+                  accept="image/*,video/*"
+                />
               </div>
 
               <div className="flex">
@@ -1539,33 +871,22 @@ export default function CreatePostPage() {
           </motion.div>
         </section>
 
-        <aside className="hidden lg:flex w-80 p-6 flex-col gap-8">
-          <div className="border border-border p-5 bg-surface/50 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-8 h-8 bg-accent/10 flex items-center justify-center border-b border-l border-border">
-              <Info className="w-4 h-4 text-accent" />
-            </div>
-            <h2 className="text-[10px] font-mono font-black text-white uppercase tracking-widest mb-4">
-              {editId ? "UPDATE_GUIDE" : "BROADCAST_GUIDE"}
-            </h2>
-            <div className="space-y-4 text-[10px] font-mono text-text-secondary uppercase leading-relaxed">
-              <p>&gt; CHOOSE_CATEGORY_FOR_BETTER_REACH</p>
-              <p>&gt; ATTACH_MEDIA_TO_INCREASE_ENGAGEMENT</p>
-              <p>&gt; COLLABS_ALLOW_TEAM_BUILDING</p>
-              <p>&gt; EVENTS_SYNC_COMMUNITIES</p>
-            </div>
-          </div>
-        </aside>
+        <GuideAside editId={state.editId} />
       </div>
 
       <Toast
-        isVisible={showSuccessToast}
-        message={editId ? "SIGNAL_UPDATED_SUCCESSFULLY" : "SIGNAL_BROADCAST_SUCCESSFUL"}
-        onClose={() => setShowSuccessToast(false)}
+        isVisible={state.showSuccessToast}
+        message={
+          state.editId
+            ? "SIGNAL_UPDATED_SUCCESSFULLY"
+            : "SIGNAL_BROADCAST_SUCCESSFUL"
+        }
+        onClose={() => actions.setShowSuccessToast(false)}
       />
       <Toast
-        isVisible={toast.isVisible}
-        message={toast.message}
-        onClose={() => setToast({ ...toast, isVisible: false })}
+        isVisible={state.toast.isVisible}
+        message={state.toast.message}
+        onClose={() => actions.setToast({ ...state.toast, isVisible: false })}
       />
     </main>
   );
