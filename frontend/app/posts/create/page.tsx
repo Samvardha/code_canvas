@@ -12,9 +12,10 @@ import { CollabFields } from "./components/CollabFields";
 import { EventFields } from "./components/EventFields";
 import { FormToolbar } from "./components/FormToolbar";
 import { GuideAside } from "./components/GuideAside";
+import { Suspense } from "react";
 import { useCreatePost } from "@/hooks/useCreatePost";
 
-export default function CreatePostPage() {
+function CreatePostContent() {
   const { state, actions, refs } = useCreatePost();
 
   if (state.authLoading || (!state.token && !state.user)) {
@@ -156,5 +157,13 @@ export default function CreatePostPage() {
         onClose={() => actions.setToast({ ...state.toast, isVisible: false })}
       />
     </main>
+  );
+}
+
+export default function CreatePostPage() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <CreatePostContent />
+    </Suspense>
   );
 }
