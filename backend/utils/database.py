@@ -39,6 +39,16 @@ async def get_post_likes_collection():
     return db.get_collection("post_likes")
 
 
+async def get_comments_collection():
+    """Dependency to get the MongoDB comments collection."""
+    return db.get_collection("comments")
+
+
+async def get_comment_likes_collection():
+    """Dependency to get the MongoDB comment_likes collection."""
+    return db.get_collection("comment_likes")
+
+
 async def ensure_indexes():
     """Create necessary database indexes."""
     try:
@@ -76,6 +86,15 @@ async def ensure_indexes():
         # Indexes for post_likes
         post_likes = await get_post_likes_collection()
         await post_likes.create_index([("post_id", 1), ("user_id", 1)], unique=True, background=True)
+
+        # Indexes for comments
+        comments = await get_comments_collection()
+        await comments.create_index([("post_id", 1), ("created_at", -1)], background=True)
+        await comments.create_index("parent_comment_id", background=True)
+
+        # Indexes for comment_likes
+        comment_likes = await get_comment_likes_collection()
+        await comment_likes.create_index([("comment_id", 1), ("user_id", 1)], unique=True, background=True)
 
         print("Successfully ensured database indexes.")
     except Exception as e:

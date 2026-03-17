@@ -1,3 +1,18 @@
+export const validateComment = (text: string): { isValid: boolean, error?: string } => {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return { isValid: false, error: "Empty" };
+  if (!/^[A-Z]/.test(trimmed)) return { isValid: false, error: "Capital start" };
+  if (/\s{2,}/.test(text)) return { isValid: false, error: "Consecutive spaces" };
+  return { isValid: true };
+};
+
+export const sanitizeComment = (val: string): string => {
+  const sanitized = val.replace(/  +/g, " ");
+  return sanitized.length > 0
+    ? sanitized.charAt(0).toUpperCase() + sanitized.slice(1)
+    : sanitized;
+};
+
 // AUTHENTICATION (LOGIN/SIGNUP)
 export const validateEmail = (email: string): boolean => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
