@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, model_validator, HttpUrl
-from typing import Optional, List, Dict, Any, Union
+from pydantic import BaseModel, Field, model_validator
+from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 from utils.serialization import COMMON_JSON_ENCODERS
 from enum import Enum
@@ -142,6 +142,7 @@ class PostResponse(BaseModel):
     collab_meta: Optional[CollabMeta] = None
     event_meta: Optional[EventMeta] = None
     stats: PostStats
+    is_liked: bool = False
     created_at: datetime
     updated_at: datetime
 

@@ -84,6 +84,7 @@ export default function CollabFeedPage() {
                   categories={post.categories}
                   collabMeta={post.collab_meta}
                   eventMeta={post.event_meta}
+                  isLiked={post.is_liked}
                 />
               ))}
             </AnimatePresence>

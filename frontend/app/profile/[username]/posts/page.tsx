@@ -98,6 +98,7 @@ export default function UserPostsPage() {
                 categories={post.categories}
                 collabMeta={post.collab_meta}
                 eventMeta={post.event_meta}
+                isLiked={post.is_liked}
               />
             ))}
           </AnimatePresence>

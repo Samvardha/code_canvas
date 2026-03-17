@@ -68,6 +68,7 @@ export interface Post {
     comments_count: number;
     shares_count: number;
   };
+  is_liked?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -195,4 +196,19 @@ export async function deletePost(postId: string, token: string): Promise<any> {
   });
 
   return handleResponse<any>(res, "Failed to delete post");
+}
+
+export async function toggleLike(
+  postId: string,
+  token: string
+): Promise<{ success: true; liked: boolean; likes_count: number }> {
+  const res = await fetch(`${baseUrl}/posts/${postId}/like`, {
+    method: "POST",
+    headers: getHeaders({ token, isJson: true }),
+  });
+
+  return handleResponse<{ success: true; liked: boolean; likes_count: number }>(
+    res,
+    "Failed to toggle like"
+  );
 }
