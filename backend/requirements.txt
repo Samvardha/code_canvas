@@ -9,3 +9,5 @@ cloudinary
 python-multipart
 pydantic
 pymongo
+google-genai
+cachetools
