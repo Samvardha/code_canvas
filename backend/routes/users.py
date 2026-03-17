@@ -1,4 +1,5 @@
 import re
+import os
 from typing import Optional
 import logging
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
@@ -104,7 +105,7 @@ async def get_user_by_username(username: str, uid: str = Depends(get_current_uid
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.error("Failed to fetch user by handle", exc_info=True, extra={"username": username})
         raise HTTPException(status_code=500, detail="Failed to fetch user profile")
 
@@ -117,7 +118,7 @@ async def check_username(username: str):
     try:
         available = await UserService.is_username_available(username)
         return {"available": available}
-    except Exception as e:
+    except Exception:
         logger.error("Failed to check username", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to check username")
 
@@ -148,8 +149,32 @@ async def get_public_github_profile(
                 "data": None,
             }
 
-        # 2. Fetch fresh public GitHub data
-        github_data = await GitHubService.fetch_public_profile(github_username, page=page, per_page=per_page)
+        # 2. Check if the requester (current user) has a GitHub token to use for higher rate limits
+        collection = await get_users_collection()
+        requester_doc = await collection.find_one(
+            {"_id": uid},
+            {"providers.github.access_token": 1}
+        )
+        
+        access_token = None
+        if requester_doc:
+            encrypted_token = requester_doc.get("providers", {}).get("github", {}).get("access_token")
+            if encrypted_token:
+                access_token = decrypt_token(encrypted_token)
+
+        # 3. Fallback to system-wide GitHub token if available
+        if not access_token:
+            encrypted_system_token = os.getenv("GITHUB_TOKEN")
+            if encrypted_system_token:
+                access_token = decrypt_token(encrypted_system_token)
+
+        # 4. Fetch fresh public GitHub data (optionally using requester's or system token)
+        github_data = await GitHubService.fetch_public_profile(
+            github_username, 
+            page=page, 
+            per_page=per_page,
+            access_token=access_token
+        )
 
         return {
             "connected": True,
@@ -158,7 +183,7 @@ async def get_public_github_profile(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.error("Failed to fetch public GitHub profile", exc_info=True, extra={"username": username})
         raise HTTPException(status_code=500, detail="Failed to fetch public GitHub profile")
 
@@ -181,7 +206,7 @@ async def get_current_user(uid: str = Depends(get_current_uid)):
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.error("Failed to fetch user profile", exc_info=True, extra={"uid": uid})
         raise HTTPException(status_code=500, detail="Failed to fetch user profile")
 
@@ -251,7 +276,7 @@ async def get_github_profile(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.error("Failed to fetch GitHub data", exc_info=True, extra={"uid": uid})
         raise HTTPException(status_code=500, detail="Failed to fetch GitHub data")
 

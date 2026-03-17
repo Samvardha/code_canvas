@@ -1,6 +1,5 @@
 import logging
 import httpx
-import asyncio
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -33,7 +32,7 @@ class GitHubService:
                 response.raise_for_status()
                 profile = response.json()
                 return profile.get("login")
-        except Exception as e:
+        except Exception:
             logger.warning("Failed to extract GitHub username", exc_info=True)
             return None
 
@@ -82,17 +81,20 @@ class GitHubService:
                 logger.info("GitHub profile fetched successfully", extra={"username": profile_data["identity"]["username"]})
                 return profile_data
 
-        except Exception as e:
+        except Exception:
             logger.error(f"Failed to fetch GitHub {'repos' if repos_only else 'profile'}", exc_info=True)
             raise
 
     @staticmethod
-    async def fetch_public_profile(username: str, page: int = 1, per_page: int = 9) -> Dict[str, Any]:
+    async def fetch_public_profile(username: str, page: int = 1, per_page: int = 9, access_token: Optional[str] = None) -> Dict[str, Any]:
         """
-        Fetch public GitHub user profile data without authentication.
+        Fetch public GitHub user profile data.
         
         Args:
             username: GitHub username
+            page: Results page
+            per_page: Results per page
+            access_token: Optional GitHub OAuth token from the requester to increase rate limits
             
         Returns:
             Dictionary containing public user profile data
@@ -100,6 +102,9 @@ class GitHubService:
         headers = {
             "Accept": "application/vnd.github+json",
         }
+        
+        if access_token:
+            headers["Authorization"] = f"Bearer {access_token}"
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -110,11 +115,11 @@ class GitHubService:
 
                 logger.info(
                     "Public GitHub profile fetched successfully",
-                    extra={"username": username},
+                    extra={"username": username, "authenticated": bool(access_token)},
                 )
                 return profile_data
 
-        except Exception as e:
+        except Exception:
             logger.error("Failed to fetch public GitHub profile", exc_info=True, extra={"username": username})
             raise
 
@@ -140,7 +145,7 @@ class GitHubService:
                     "created_at": profile.get("created_at"),
                 }
             }
-        except Exception as e:
+        except Exception:
             logger.error("Failed to fetch GitHub user identity", exc_info=True)
             raise
 
@@ -159,7 +164,7 @@ class GitHubService:
                     for e in response.json()
                 ]
             return []
-        except Exception as e:
+        except Exception:
             logger.warning("Failed to fetch GitHub emails", exc_info=True)
             return []
 
@@ -211,7 +216,7 @@ class GitHubService:
                     "per_page": per_page,
                 },
             }
-        except Exception as e:
+        except Exception:
             logger.warning("Failed to fetch GitHub repositories", exc_info=True)
             return {"repositories": [], "repo_stats": {}}
 
@@ -238,6 +243,6 @@ class GitHubService:
                     for e in response.json()[:5]
                 ]
             return []
-        except Exception as e:
+        except Exception:
             logger.warning("Failed to fetch GitHub activity", exc_info=True)
             return []
