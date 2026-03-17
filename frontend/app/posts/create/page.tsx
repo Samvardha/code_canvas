@@ -1512,21 +1512,6 @@ export default function CreatePostPage() {
                     {isGenerating ? "PROCESSING..." : "WRITE_WITH_AI"}
                   </span>
                 </button>
-                <div className="w-px h-4 bg-border/50"></div>
-                <label className="flex gap-2 items-center group cursor-pointer">
-                  <ImageIcon className="w-4 h-4 text-text-secondary group-hover:text-white transition-colors" />
-                  <span className="text-[10px] font-mono font-bold text-text-secondary group-hover:text-white tracking-widest transition-colors uppercase">
-                    ATTACH
-                  </span>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    multiple
-                    accept="image/*,video/*"
-                  />
-                </label>
               </div>
 
               <div className="flex">
