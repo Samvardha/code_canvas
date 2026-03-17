@@ -27,6 +27,7 @@ interface AuthContextType {
   backendUid: string | null;
   profileComplete: boolean;
   userProfile: any | null;
+  isBackendSyncing: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithGitHub: () => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<User>;
@@ -54,39 +55,56 @@ async function syncBackendSession(
   githubAccessToken?: string,
   profileEmail?: string,
 ): Promise<string | null> {
-  try {
-    const idToken = await user.getIdToken();
-    const backendUrl =
-      process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+  let retries = 0;
+  const maxRetries = 15;
+  const retryDelay = 3000;
 
-    const resolvedEmail =
-      user.email || user.providerData?.[0]?.email || profileEmail || null;
+  while (retries < maxRetries) {
+    try {
+      const idToken = await user.getIdToken();
+      const backendUrl =
+        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
-    const res = await fetch(`${backendUrl}/auth/session`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id_token: idToken,
-        provider_id: providerId,
-        github_access_token: githubAccessToken || null,
-        email: resolvedEmail,
-      }),
-    });
+      const resolvedEmail =
+        user.email || user.providerData?.[0]?.email || profileEmail || null;
 
-    if (res.ok) {
-      const data = await res.json();
-      return data.uid;
+      const res = await fetch(`${backendUrl}/auth/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_token: idToken,
+          provider_id: providerId,
+          github_access_token: githubAccessToken || null,
+          email: resolvedEmail,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return data.uid;
+      }
+      
+      // If we get a 502 Bad Gateway or 503, Render might be waking up
+      if (res.status === 502 || res.status === 503) {
+        retries++;
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        continue;
+      }
+      
+      return null;
+    } catch {
+      retries++;
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
-    return null;
-  } catch {
-    console.error("Backend sync failed");
-    return null;
   }
+  console.error("Backend sync failed after retries");
+  return null;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isBackendSyncing, setIsBackendSyncing] = useState(true);
   const [backendUid, setBackendUid] = useState<string | null>(null);
   const [profileComplete, setProfileComplete] = useState<boolean>(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
@@ -94,24 +112,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserProfile = React.useCallback(async () => {
     if (!auth.currentUser) return null;
-    try {
-      const idToken = await auth.currentUser.getIdToken();
-      const backendUrl =
-        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-      const res = await fetch(`${backendUrl}/users/me`, {
-        headers: { Authorization: `Bearer ${idToken}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUserProfile(data);
-        setProfileComplete(data.profile_complete || false);
-        return data;
+    
+    let retries = 0;
+    const maxRetries = 10;
+    const retryDelay = 3000;
+
+    while (retries < maxRetries) {
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        const backendUrl =
+          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const res = await fetch(`${backendUrl}/users/me`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setUserProfile(data);
+          setProfileComplete(data.profile_complete || false);
+          setIsBackendSyncing(false);
+          setLoading(false);
+          return data;
+        }
+        
+        if (res.status === 502 || res.status === 503) {
+          setIsBackendSyncing(true);
+          retries++;
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          continue;
+        }
+
+        setIsBackendSyncing(false);
+        setLoading(false);
+        return null;
+      } catch {
+        setIsBackendSyncing(true);
+        retries++;
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
       }
-      return null;
-    } catch {
-      console.error("Failed to fetch user profile");
-      return null;
     }
+    console.error("Failed to fetch user profile after retries");
+    setIsBackendSyncing(false);
+    setLoading(false);
+    return null;
   }, []);
 
   const refreshProfile = React.useCallback(async () => {
@@ -129,24 +172,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
+        setIsBackendSyncing(true);
         const providerId = firebaseUser.providerData[0]?.providerId || "unknown";
         const uid = await syncBackendSession(firebaseUser, providerId);
         setBackendUid(uid);
         if (uid) {
           await fetchUserProfile();
+        } else {
+          setIsBackendSyncing(false);
+          setLoading(false);
         }
       } else {
         setBackendUid(null);
         setUserProfile(null);
         setProfileComplete(false);
+        setIsBackendSyncing(false);
+        setLoading(false);
       }
-      setLoading(false);
     });
     return () => unsubscribe();
   }, [fetchUserProfile]);
 
   const signInWithGoogle = React.useCallback(async () => {
     signingInRef.current = true;
+    setIsBackendSyncing(true); // Explicitly capture the UI loading state
+    setLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const additionalInfo = getAdditionalUserInfo(result);
@@ -163,6 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await fetchUserProfile();
       }
     } finally {
+      setIsBackendSyncing(false);
       setLoading(false);
       // Small delay to ensure onAuthStateChanged sees the ref before it turns false
       setTimeout(() => {
@@ -173,6 +224,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGitHub = React.useCallback(async () => {
     signingInRef.current = true;
+    setIsBackendSyncing(true);
+    setLoading(true);
     try {
       const result = await signInWithPopup(auth, githubProvider);
       const credential = GithubAuthProvider.credentialFromResult(result);
@@ -201,6 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       throw error;
     } finally {
+      setIsBackendSyncing(false);
       setLoading(false);
       setTimeout(() => {
         signingInRef.current = false;
@@ -210,6 +264,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUpWithEmail = React.useCallback(async (email: string, password: string) => {
     signingInRef.current = true;
+    setIsBackendSyncing(true);
+    setLoading(true);
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
       const uid = await syncBackendSession(result.user, "password");
@@ -219,6 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return result.user;
     } finally {
+      setIsBackendSyncing(false);
       setLoading(false);
       setTimeout(() => {
         signingInRef.current = false;
@@ -228,6 +285,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithEmail = React.useCallback(async (email: string, password: string) => {
     signingInRef.current = true;
+    setIsBackendSyncing(true);
+    setLoading(true);
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       const uid = await syncBackendSession(result.user, "password");
@@ -237,6 +296,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return result.user;
     } finally {
+      setIsBackendSyncing(false);
       setLoading(false);
       setTimeout(() => {
         signingInRef.current = false;
@@ -254,6 +314,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const linkGitHub = React.useCallback(async () => {
     if (!auth.currentUser) return;
     signingInRef.current = true;
+    setIsBackendSyncing(true);
+    setLoading(true);
     try {
       const result = await linkWithPopup(auth.currentUser, githubProvider);
       const credential = GithubAuthProvider.credentialFromResult(result);
@@ -276,6 +338,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Link GitHub error:", error);
       throw error;
     } finally {
+      setIsBackendSyncing(false);
       setLoading(false);
       setTimeout(() => {
         signingInRef.current = false;
@@ -316,6 +379,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         backendUid,
         profileComplete,
         userProfile,
+        isBackendSyncing,
         signInWithGoogle,
         signInWithGitHub,
         signUpWithEmail,

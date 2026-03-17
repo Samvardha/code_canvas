@@ -40,6 +40,7 @@ export default function LoginPage() {
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,
+    isBackendSyncing,
   } = useAuth();
   const router = useRouter();
   const [flow, setFlow] = useState<Flow>("email-check");
@@ -93,7 +94,10 @@ export default function LoginPage() {
   }
 
   useEffect(() => {
-    if (!loading && user) {
+    // PREVENT ALL REDIRECTIONS IF WE ARE LOADING OR SYNCING
+    if (loading || isBackendSyncing) return;
+    
+    if (user) {
       const isPasswordAuth = user.providerData.some(
         (p) => p.providerId === "password",
       );
@@ -105,7 +109,7 @@ export default function LoginPage() {
         router.push("/explore-feed");
       }
     }
-  }, [user, loading, profileComplete, router]);
+  }, [user, loading, profileComplete, isBackendSyncing, router]);
 
   const handleEmailCheck = async () => {
     if (!isEmailValid) return;
@@ -212,12 +216,12 @@ export default function LoginPage() {
     else if (flow === "reset-password") handleForgotPassword();
   };
 
-  if (loading) {
+  if (loading || isBackendSyncing) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
         <div className="font-mono text-accent text-sm uppercase tracking-widest font-bold animate-pulse flex items-center gap-3">
-          <div className="w-3 h-3 bg-accent rotate-45"></div>[
-          ESTABLISHING_CONNECTION ]
+          <div className="w-3 h-3 bg-accent rotate-45"></div>
+          [{isBackendSyncing ? "SYNCING_SECURE_CONNECTION" : "ESTABLISHING_CONNECTION"}]
         </div>
       </div>
     );

@@ -23,7 +23,7 @@ import { UsernameField } from "./components/UsernameField";
 import { SkillInputSection } from "./components/SkillInputSection";
 
 export default function OnboardingPage() {
-  const { user, loading, profileComplete, userProfile, refreshProfile } =
+  const { user, loading, profileComplete, userProfile, refreshProfile, isBackendSyncing } =
     useAuth();
   const router = useRouter();
 
@@ -43,12 +43,15 @@ export default function OnboardingPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
+    // PREVENT ALL REDIRECTIONS IF WE ARE LOADING OR SYNCING
+    if (loading || isBackendSyncing) return;
+    
+    if (!user) {
       router.push("/login");
-    } else if (!loading && profileComplete) {
+    } else if (profileComplete) {
       router.push("/explore-feed");
     }
-  }, [user, loading, profileComplete, router]);
+  }, [user, loading, profileComplete, isBackendSyncing, router]);
 
   useEffect(() => {
     if (userProfile?.profile && !hasInterpolated) {
@@ -125,12 +128,12 @@ export default function OnboardingPage() {
     }
   };
 
-  if (loading || (user && profileComplete)) {
+  if (loading || isBackendSyncing || (user && profileComplete)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
         <div className="font-mono text-accent text-sm uppercase tracking-widest font-bold animate-pulse flex items-center gap-3">
-          <div className="w-3 h-3 bg-accent rotate-45"></div>[
-          INITIALIZING_ENVIRONMENT ]
+          <div className="w-3 h-3 bg-accent rotate-45"></div>
+          [{isBackendSyncing ? "SYNCING_SECURE_CONNECTION" : "INITIALIZING_ENVIRONMENT"}]
         </div>
       </div>
     );
