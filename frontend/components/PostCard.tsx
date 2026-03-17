@@ -18,6 +18,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { deletePost } from "@/lib/api/posts";
 import Popup from "@/components/Popup";
+import { MenuDropdown } from "./MenuDropdown";
 import Toast from "@/components/Toast";
 import { createPortal } from "react-dom";
 
@@ -152,9 +153,9 @@ export function PostCard({
       id={`post-ID-${postId}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`w-full bg-surface border border-border overflow-hidden transition-all duration-500 relative ${isDeleting ? "opacity-50 grayscale pointer-events-none" : ""}`}
+      className={`w-full bg-surface border border-border transition-all duration-500 relative ${isMenuOpen ? "z-50" : "z-10"} ${isDeleting ? "opacity-50 grayscale pointer-events-none" : ""}`}
     >
-      <div className="p-4 sm:p-6 flex items-start justify-between relative z-10">
+      <div className={`p-4 sm:p-6 flex items-start justify-between relative z-20`}>
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 border border-border bg-background overflow-hidden relative transition-colors duration-500">
             {avatarUrl ? (
@@ -203,41 +204,37 @@ export function PostCard({
                 <MoreHorizontal className="w-5 h-5" />
               </button>
 
-              <AnimatePresence>
-                {isMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                    className="absolute right-0 mt-2 w-48 bg-black border border-border overflow-hidden"
-                  >
-                    <div className="flex flex-col p-1">
-                      <button
-                        onClick={handleEdit}
-                        className="flex items-center gap-3 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-accent hover:text-black transition-all text-left"
-                      >
-                        <Edit3 size={14} />
-                        Update_Signal
-                      </button>
-                      <button
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        className="flex items-center gap-3 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:bg-red-500/10 transition-all text-left border-t border-border/50"
-                      >
-                        <Trash2 size={14} />
-                        {isDeleting ? "TERMINATING..." : "Terminate_Signal"}
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <MenuDropdown
+                isOpen={isMenuOpen}
+                className="w-48"
+                items={[
+                  {
+                    label: "Update Signal",
+                    icon: Edit3,
+                    onClick: (e) => {
+                      e.stopPropagation();
+                      handleEdit();
+                    },
+                  },
+                  {
+                    label: "Terminate Signal",
+                    icon: Trash2,
+                    onClick: (e) => {
+                      e.stopPropagation();
+                      handleDelete();
+                    },
+                    variant: "danger",
+                    disabled: isDeleting,
+                  },
+                ]}
+              />
             </div>
           )}
         </div>
       </div>
 
     {/* Content */}
-    <div className="px-4 sm:px-6 pb-6 space-y-6 relative z-10">
+    <div className="px-4 sm:px-6 pb-6 space-y-6">
         {content && (
           <p className="text-[15px] text-text-primary leading-relaxed tracking-wide font-normal pl-0.5 border-l-2 border-transparent transition-all duration-700">
             {content}
@@ -487,10 +484,10 @@ export function PostCard({
       <Popup
         isOpen={showDeletePopup}
         onClose={() => setShowDeletePopup(false)}
-        title="TERMINATE_BROADCAST_CONFIRMATION"
+        title="TERMINATE_SIGNAL_CONFIRMATION"
         description="Are you sure you want to delete this post? This action cannot be reversed in this sector."
         primaryButton={{
-          label: "TERMINATE_BROADCAST",
+          label: "TERMINATE_SIGNAL",
           onClick: confirmDelete,
           variant: "danger",
         }}

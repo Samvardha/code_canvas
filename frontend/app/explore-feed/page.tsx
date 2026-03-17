@@ -7,6 +7,7 @@ import { Button } from "@/components/Button";
 import { getExploreFeed } from "@/lib/api/posts";
 import { FeedLayout } from "@/components/FeedLayout";
 import { useFeed } from "@/hooks/useFeed";
+import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
 import Toast from "@/components/Toast";
 import { 
   TrendingUp,
@@ -20,12 +21,17 @@ export default function FeedPage() {
     posts, 
     setPosts, 
     loading, 
+    loadingMore,
+    hasMore,
     token, 
     authLoading, 
     user, 
     errorToast, 
-    setErrorToast 
+    setErrorToast,
+    loadMore
   } = useFeed(getExploreFeed);
+
+  const observerRef = useIntersectionObserver(loadMore, [hasMore, loadingMore, loading]);
 
   return (
     <>
@@ -79,32 +85,46 @@ export default function FeedPage() {
             <span className="text-[10px] font-mono text-accent uppercase tracking-widest">Intercepting_Signals...</span>
           </div>
         ) : posts.length > 0 ? (
-          <AnimatePresence initial={false}>
-            {posts.map((post, idx) => (
-              <PostCard 
-                key={post._id || `post-${idx}`} 
-                postId={post._id}
-                authorId={post.author_id}
-                currentUserId={user?.uid}
-                token={token}
-                onDelete={(id) => setPosts(posts.filter(p => p._id !== id))}
-                username={post.author?.name || "Anonymous"}
-                userHandle={post.author?.username || "unknown"}
-                avatarUrl={post.author?.avatar_url}
-                timestamp={new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                date={new Date(post.created_at).toLocaleDateString()}
-                content={post.content.text || ""}
-                links={post.content.links}
-                media={post.content.media}
-                github={post.github}
-                likes={post.stats.likes_count}
-                comments={post.stats.comments_count}
-                categories={post.categories}
-                collabMeta={post.collab_meta}
-                eventMeta={post.event_meta}
-              />
-            ))}
-          </AnimatePresence>
+          <>
+            <AnimatePresence initial={false}>
+              {posts.map((post, idx) => (
+                <PostCard 
+                  key={post._id || `post-${idx}`} 
+                  postId={post._id}
+                  authorId={post.author_id}
+                  currentUserId={user?.uid}
+                  token={token}
+                  onDelete={(id) => setPosts(posts.filter(p => p._id !== id))}
+                  username={post.author?.name || "Anonymous"}
+                  userHandle={post.author?.username || "unknown"}
+                  avatarUrl={post.author?.avatar_url}
+                  timestamp={new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  date={new Date(post.created_at).toLocaleDateString()}
+                  content={post.content.text || ""}
+                  links={post.content.links}
+                  media={post.content.media}
+                  github={post.github}
+                  likes={post.stats.likes_count}
+                  comments={post.stats.comments_count}
+                  categories={post.categories}
+                  collabMeta={post.collab_meta}
+                  eventMeta={post.event_meta}
+                />
+              ))}
+            </AnimatePresence>
+            
+            <div ref={observerRef} className="h-20 flex items-center justify-center">
+              {loadingMore && (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 text-accent animate-spin" />
+                  <span className="text-[8px] font-mono text-accent uppercase tracking-widest">FETCHING_MORE_SIGNALS...</span>
+                </div>
+              )}
+              {!hasMore && (
+                <span className="text-[8px] font-mono text-text-secondary uppercase tracking-[0.2em]">BOTTOM_OF_SECTOR_REACHED</span>
+              )}
+            </div>
+          </>
         ) : (
           <div className="p-20 text-center flex flex-col items-center gap-4 bg-black">
             <div className="w-12 h-12 border border-border flex items-center justify-center">

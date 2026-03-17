@@ -35,6 +35,7 @@ export default function LoginPage() {
   const {
     user,
     loading,
+    backendUid,
     profileComplete,
     logout,
     signInWithGoogle,
@@ -94,6 +95,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
+      if (backendUid === null) return;
+
       const isPasswordAuth = user.providerData.some(
         (p) => p.providerId === "password",
       );
@@ -105,7 +108,7 @@ export default function LoginPage() {
         router.push("/explore-feed");
       }
     }
-  }, [user, loading, profileComplete, router]);
+  }, [user, loading, backendUid, profileComplete, router]);
 
   const handleEmailCheck = async () => {
     if (!isEmailValid) return;
@@ -212,12 +215,12 @@ export default function LoginPage() {
     else if (flow === "reset-password") handleForgotPassword();
   };
 
-  if (loading) {
+  if (loading || (user && backendUid === null && loading)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
         <div className="font-mono text-accent text-sm uppercase tracking-widest font-bold animate-pulse flex items-center gap-3">
-          <div className="w-3 h-3 bg-accent rotate-45"></div>[
-          ESTABLISHING_CONNECTION ]
+          <div className="w-3 h-3 bg-accent rotate-45"></div>[ 
+          {user && loading ? "SYNCING_CONNECTION" : "ESTABLISHING_CONNECTION"} ]
         </div>
       </div>
     );

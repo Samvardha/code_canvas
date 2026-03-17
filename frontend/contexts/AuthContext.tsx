@@ -146,6 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUserProfile]);
 
   const signInWithGoogle = React.useCallback(async () => {
+    setLoading(true);
     signingInRef.current = true;
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -172,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUserProfile]);
 
   const signInWithGitHub = React.useCallback(async () => {
+    setLoading(true);
     signingInRef.current = true;
     try {
       const result = await signInWithPopup(auth, githubProvider);
@@ -209,6 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUserProfile]);
 
   const signUpWithEmail = React.useCallback(async (email: string, password: string) => {
+    setLoading(true);
     signingInRef.current = true;
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
@@ -227,6 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUserProfile]);
 
   const signInWithEmail = React.useCallback(async (email: string, password: string) => {
+    setLoading(true);
     signingInRef.current = true;
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);

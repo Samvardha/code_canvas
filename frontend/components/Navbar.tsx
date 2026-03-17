@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { searchUsers, User as SearchUser } from "@/lib/api/users";
+import { MenuDropdown } from "./MenuDropdown";
 
 export function Navbar() {
   const { user, userProfile, logout } = useAuth();
@@ -335,57 +336,36 @@ export function Navbar() {
               />
             </button>
 
-            <AnimatePresence>
-              {isDropdownOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{
-                    height: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
-                    opacity: { duration: 0.2, ease: "linear" },
-                  }}
-                  className="absolute right-0 mt-4 w-full min-w-[200px] border border-border bg-background/80 backdrop-blur-xl shadow-2xl z-50 origin-top-right overflow-hidden shadow-black/80"
-                >
-                  <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-accent/40"></div>
-
-                  <div className="p-2 flex flex-col gap-1">
-                    <button
-                      onClick={() => {
-                        if (profile?.username) {
-                          router.push(`/profile/${profile?.username}`);
-                        } else {
-                          router.push("/");
-                        }
-                        setIsDropdownOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-accent hover:text-black transition-all group/item"
-                    >
-                      <User className="w-4 h-4" />
-                      View Identity
-                    </button>
-                    <button
-                      onClick={() => {
-                        logout();
-                        setIsDropdownOpen(false);
-                        router.push("/login");
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:bg-red-500 hover:text-white transition-all"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Terminate Session
-                    </button>
-                  </div>
-
-                  <div className="border-t border-border p-3 bg-background/50">
-                    <div className="flex items-center justify-between text-[8px] font-mono text-text-secondary uppercase tracking-[0.2em] font-bold">
-                      <span>STATUS</span>
-                      <span className="text-accent animate-pulse">ACTIVE</span>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <MenuDropdown
+              isOpen={isDropdownOpen}
+              footerLeft="STATUS"
+              footerRight="ACTIVE"
+              items={[
+                {
+                  label: "View Identity",
+                  icon: User,
+                  onClick: () => {
+                    if (profile?.username) {
+                      router.push(`/profile/${profile?.username}`);
+                    } else {
+                      router.push("/");
+                    }
+                    setIsDropdownOpen(false);
+                  },
+                },
+                {
+                  label: "Terminate Session",
+                  icon: LogOut,
+                  onClick: () => {
+                    logout();
+                    setIsDropdownOpen(false);
+                    router.push("/login");
+                  },
+                  variant: "danger",
+                },
+              ]}
+              className="w-64"
+            />
           </div>
         </div>
       </div>
