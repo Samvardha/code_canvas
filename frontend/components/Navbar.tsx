@@ -15,6 +15,8 @@ import {
   Calendar,
   Command,
   Loader2,
+  Menu,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { searchUsers, User as SearchUser } from "@/lib/api/users";
@@ -25,6 +27,8 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,6 +41,7 @@ export function Navbar() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   const profile = userProfile?.profile;
 
@@ -53,6 +58,12 @@ export function Navbar() {
         !searchContainerRef.current.contains(event.target as Node)
       ) {
         setShowSearchDropdown(false);
+      }
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsMobileMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -157,19 +168,21 @@ export function Navbar() {
   ];
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border">
-      <div className="max-w-[1440px] mx-auto h-20 px-6 flex items-center justify-between gap-8">
-        <div className="flex items-center gap-12">
+    <>
+      <nav className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="max-w-360 mx-auto h-20 px-4 sm:px-6 flex items-center justify-between gap-4 sm:gap-8">
+          {/* Logo */}
           <Link
             href="/explore-feed"
-            className="flex items-center gap-3 group shrink-0"
+            className="flex items-center gap-2 sm:gap-3 group shrink-0"
           >
-            <div className="w-4 h-4 bg-accent rotate-45 group-hover:scale-110 transition-transform duration-300" />
-            <span className="text-xl font-black tracking-tighter uppercase font-(family-name:--font-space-grotesk) mt-1">
+            <div className="w-3 h-3 sm:w-4 sm:h-4 bg-accent rotate-45 group-hover:scale-110 transition-transform duration-300" />
+            <span className="text-sm sm:text-xl font-black tracking-tighter uppercase font-(family-name:--font-space-grotesk) mt-1">
               TECH CONNECT
             </span>
           </Link>
 
+          {/* Desktop Navigation - hidden on small screens */}
           <div className="hidden lg:flex items-center gap-1">
             {navItems.map((item) => (
               <Link
@@ -189,186 +202,416 @@ export function Navbar() {
               </Link>
             ))}
           </div>
-        </div>
 
-        <div className="flex items-center gap-6 flex-1 justify-end">
-          <div
-            className="relative w-64 lg:w-68 hidden md:block group transition-all duration-300"
-            ref={searchContainerRef}
-          >
-            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 text-accent animate-spin" />
-              ) : (
-                <Search className="w-4 h-4 text-text-secondary group-focus-within:text-accent transition-colors" />
-              )}
-            </div>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() =>
-                searchQuery.trim().length >= 2 && setShowSearchDropdown(true)
-              }
-              className={`w-full bg-surface border border-border pl-10 ${searchQuery ? "pr-4" : "pr-16"} py-2.5 text-xs font-mono text-white focus:outline-none focus:border-accent/50 transition-all placeholder:text-text-secondary/50 rounded-none shadow-inner`}
-            />
-            {!searchQuery && (
-              <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                <div className="flex items-center gap-1 px-1.5 py-0.5 border border-border bg-background rounded text-[9px] font-mono text-text-secondary">
-                  <Command className="w-2.5 h-2.5" /> +<span>K</span>
-                </div>
-              </div>
-            )}
-
-            <AnimatePresence>
-              {showSearchDropdown && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="absolute top-full left-0 w-full mt-2 border border-border bg-background/95 backdrop-blur-xl shadow-2xl z-50 overflow-hidden"
-                >
-                  <div
-                    ref={scrollRef}
-                    onScroll={handleSearchScroll}
-                    className="p-2 flex flex-col max-h-[400px] overflow-y-auto hide-scrollbar"
-                  >
-                    {isLoading && searchResults.length === 0 ? (
-                      <div className="p-4 text-center text-[10px] font-mono text-text-secondary uppercase tracking-widest">
-                        Initializing search...
-                      </div>
-                    ) : searchError ? (
-                      <div className="p-4 text-center text-[10px] font-mono text-red-500 uppercase tracking-widest">
-                        {searchError}
-                      </div>
-                    ) : searchResults.length > 0 ? (
-                      searchResults.map((resultUser) => (
-                        <button
-                          key={resultUser.firebase_uid}
-                          onClick={() => {
-                            router.push(`/profile/${resultUser.username}`);
-                            setShowSearchDropdown(false);
-                            setSearchQuery("");
-                          }}
-                          className="w-full flex items-center gap-4 p-3 hover:bg-white/5 transition-colors text-left border-b border-border/50 last:border-none group/item"
-                        >
-                          <div className="w-10 h-10 border border-border bg-background shrink-0 flex items-center justify-center overflow-hidden">
-                            {resultUser.avatar_url ? (
-                              <img
-                                src={resultUser.avatar_url}
-                                alt={resultUser.username}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <span className="text-xs font-mono text-accent">
-                                {(
-                                  resultUser.username?.[0] || "?"
-                                ).toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-bold text-white uppercase truncate group-hover/item:text-accent transition-colors">
-                              {resultUser.username}
-                            </span>
-                            <span className="text-[10px] font-mono text-text-secondary truncate">
-                              {resultUser.display_name ||
-                                resultUser.bio ||
-                                "No description"}
-                            </span>
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      !isLoading && (
-                        <div className="p-4 text-center text-[10px] font-mono text-text-secondary uppercase tracking-widest">
-                          No users found for &apos;{searchQuery}&apos;
-                        </div>
-                      )
-                    )}
-                    {isLoadingMore && (
-                      <div className="p-4 flex justify-center">
-                        <Loader2 className="w-4 h-4 text-accent animate-spin" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="border-t border-border p-2 bg-background/50">
-                    <div className="flex items-center justify-between text-[8px] font-mono text-text-secondary uppercase tracking-widest px-2">
-                      <span>RESULTS: {searchResults.length}</span>
-                      <span className="text-accent">QUERIED</span>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className={`flex items-center gap-4 p-2 transition-all cursor-pointer group ${isDropdownOpen ? "bg-white/5" : "hover:bg-white/5"}`}
+          <div className="flex items-center gap-3 sm:gap-6 flex-1 justify-end">
+            {/* Desktop Search */}
+            <div
+              className="relative w-64 lg:w-68 hidden md:block group transition-all duration-300"
+              ref={searchContainerRef}
             >
-              <div className="flex-col items-end text-right hidden sm:flex">
-                <span className="text-[11px] font-black text-white uppercase tracking-tight leading-none">
-                  {profile?.name || "ANONYMOUS"}
-                </span>
-                <span className="text-[9px] font-mono text-text-secondary uppercase tracking-widest mt-1">
-                  @{profile?.username || "identity"}
-                </span>
-              </div>
-              <div className="w-10 h-10 border border-border bg-background overflow-hidden shrink-0 transition-colors">
-                {profile?.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt="avatar"
-                    className="w-full h-full object-cover"
-                  />
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 text-accent animate-spin" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-accent/10 text-accent font-bold text-xs font-mono uppercase">
-                    {profile?.name?.[0] || profile?.username?.[0] || "U"}
-                  </div>
+                  <Search className="w-4 h-4 text-text-secondary group-focus-within:text-accent transition-colors" />
                 )}
               </div>
-              <ChevronDown
-                className={`w-4 h-4 text-text-secondary transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() =>
+                  searchQuery.trim().length >= 2 && setShowSearchDropdown(true)
+                }
+                className={`w-full bg-surface border border-border pl-10 ${searchQuery ? "pr-4" : "pr-16"} py-2.5 text-xs font-mono text-white focus:outline-none focus:border-accent/50 transition-all placeholder:text-text-secondary/50 rounded-none shadow-inner`}
               />
+              {!searchQuery && (
+                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 border border-border bg-background rounded text-[9px] font-mono text-text-secondary">
+                    <Command className="w-2.5 h-2.5" /> +<span>K</span>
+                  </div>
+                </div>
+              )}
+
+              <AnimatePresence>
+                {showSearchDropdown && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="absolute top-full left-0 w-full mt-2 border border-border bg-background/95 backdrop-blur-xl shadow-2xl z-50 overflow-hidden"
+                  >
+                    <div
+                      ref={scrollRef}
+                      onScroll={handleSearchScroll}
+                      className="p-2 flex flex-col max-h-100 overflow-y-auto hide-scrollbar"
+                    >
+                      {isLoading && searchResults.length === 0 ? (
+                        <div className="p-4 text-center text-[10px] font-mono text-text-secondary uppercase tracking-widest">
+                          Initializing search...
+                        </div>
+                      ) : searchError ? (
+                        <div className="p-4 text-center text-[10px] font-mono text-red-500 uppercase tracking-widest">
+                          {searchError}
+                        </div>
+                      ) : searchResults.length > 0 ? (
+                        searchResults.map((resultUser) => (
+                          <button
+                            key={resultUser.firebase_uid}
+                            onClick={() => {
+                              router.push(`/profile/${resultUser.username}`);
+                              setShowSearchDropdown(false);
+                              setSearchQuery("");
+                            }}
+                            className="w-full flex items-center gap-4 p-3 hover:bg-white/5 transition-colors text-left border-b border-border/50 last:border-none group/item"
+                          >
+                            <div className="w-10 h-10 border border-border bg-background shrink-0 flex items-center justify-center overflow-hidden">
+                              {resultUser.avatar_url ? (
+                                <img
+                                  src={resultUser.avatar_url}
+                                  alt={resultUser.username}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-xs font-mono text-accent">
+                                  {(
+                                    resultUser.username?.[0] || "?"
+                                  ).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs font-bold text-white uppercase truncate group-hover/item:text-accent transition-colors">
+                                {resultUser.username}
+                              </span>
+                              <span className="text-[10px] font-mono text-text-secondary truncate">
+                                {resultUser.display_name ||
+                                  resultUser.bio ||
+                                  "No description"}
+                              </span>
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        !isLoading && (
+                          <div className="p-4 text-center text-[10px] font-mono text-text-secondary uppercase tracking-widest">
+                            No users found for &apos;{searchQuery}&apos;
+                          </div>
+                        )
+                      )}
+                      {isLoadingMore && (
+                        <div className="p-4 flex justify-center">
+                          <Loader2 className="w-4 h-4 text-accent animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="border-t border-border p-2 bg-background/50">
+                      <div className="flex items-center justify-between text-[8px] font-mono text-text-secondary uppercase tracking-widest px-2">
+                        <span>RESULTS: {searchResults.length}</span>
+                        <span className="text-accent">QUERIED</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Mobile Search Icon - shown on small screens */}
+            <button
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              className="md:hidden p-2 hover:bg-white/5 transition-colors"
+            >
+              <Search className="w-5 h-5 text-white" />
             </button>
 
-            <MenuDropdown
-              isOpen={isDropdownOpen}
-              footerLeft="STATUS"
-              footerRight="ACTIVE"
-              items={[
-                {
-                  label: "View Identity",
-                  icon: User,
-                  onClick: () => {
-                    if (profile?.username) {
-                      router.push(`/profile/${profile?.username}`);
-                    } else {
-                      router.push("/");
-                    }
-                    setIsDropdownOpen(false);
+            {/* Mobile Menu Icon - shown on small screens */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden p-2 hover:bg-white/5 transition-colors"
+            >
+              {isMobileMenuOpen ? (
+                <X className="w-5 h-5 text-white" />
+              ) : (
+                <Menu className="w-5 h-5 text-white" />
+              )}
+            </button>
+
+            {/* Desktop User Menu (with name and username) */}
+            <div className="relative hidden lg:block" ref={dropdownRef}>
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className={`flex items-center gap-4 p-2 transition-all cursor-pointer group ${isDropdownOpen ? "bg-white/5" : "hover:bg-white/5"}`}
+              >
+                <div className="flex flex-col items-end text-right">
+                  <span className="text-[11px] font-black text-white uppercase tracking-tight leading-none">
+                    {profile?.name || "ANONYMOUS"}
+                  </span>
+                  <span className="text-[9px] font-mono text-text-secondary uppercase tracking-widest mt-1">
+                    @{profile?.username || "identity"}
+                  </span>
+                </div>
+                <div className="w-10 h-10 border border-border bg-background overflow-hidden shrink-0 transition-colors">
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt="avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-accent/10 text-accent font-bold text-xs font-mono uppercase">
+                      {profile?.name?.[0] || profile?.username?.[0] || "U"}
+                    </div>
+                  )}
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 text-text-secondary transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              <MenuDropdown
+                isOpen={isDropdownOpen}
+                footerLeft="STATUS"
+                footerRight="ACTIVE"
+                items={[
+                  {
+                    label: "View Identity",
+                    icon: User,
+                    onClick: () => {
+                      if (profile?.username) {
+                        router.push(`/profile/${profile?.username}`);
+                      } else {
+                        router.push("/");
+                      }
+                      setIsDropdownOpen(false);
+                    },
                   },
-                },
-                {
-                  label: "Terminate Session",
-                  icon: LogOut,
-                  onClick: () => {
-                    logout();
-                    setIsDropdownOpen(false);
-                    router.push("/login");
+                  {
+                    label: "Terminate Session",
+                    icon: LogOut,
+                    onClick: () => {
+                      logout();
+                      setIsDropdownOpen(false);
+                      router.push("/login");
+                    },
+                    variant: "danger",
                   },
-                  variant: "danger",
-                },
-              ]}
-              className="w-64"
-            />
+                ]}
+                className="w-64"
+              />
+            </div>
+
+            {/* Mobile User Menu (profile pic only) */}
+            <div className="relative lg:hidden" ref={dropdownRef}>
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className={`flex items-center transition-all cursor-pointer ${isDropdownOpen ? "bg-white/5" : "hover:bg-white/5"}`}
+              >
+                <div className="w-8 h-8 border border-border bg-background overflow-hidden shrink-0 transition-colors">
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt="avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-accent/10 text-accent font-bold text-xs font-mono uppercase">
+                      {profile?.name?.[0] || profile?.username?.[0] || "U"}
+                    </div>
+                  )}
+                </div>
+              </button>
+
+              <MenuDropdown
+                isOpen={isDropdownOpen}
+                footerLeft="STATUS"
+                footerRight="ACTIVE"
+                items={[
+                  {
+                    label: "View Identity",
+                    icon: User,
+                    onClick: () => {
+                      if (profile?.username) {
+                        router.push(`/profile/${profile?.username}`);
+                      } else {
+                        router.push("/");
+                      }
+                      setIsDropdownOpen(false);
+                    },
+                  },
+                  {
+                    label: "Terminate Session",
+                    icon: LogOut,
+                    onClick: () => {
+                      logout();
+                      setIsDropdownOpen(false);
+                      router.push("/login");
+                    },
+                    variant: "danger",
+                  },
+                ]}
+                className="w-56"
+              />
+            </div>
           </div>
         </div>
+      </nav>
+
+      <AnimatePresence>
+        {isSearchOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden fixed top-20 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b border-border"
+          >
+            <div className="max-w-360 mx-auto px-4 py-4">
+              <div className="relative w-full group" ref={searchContainerRef}>
+                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 text-accent animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 text-text-secondary group-focus-within:text-accent transition-colors" />
+                  )}
+                </div>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() =>
+                    searchQuery.trim().length >= 2 &&
+                    setShowSearchDropdown(true)
+                  }
+                  className={`w-full bg-surface border border-border pl-10 ${searchQuery ? "pr-4" : "pr-4"} py-2.5 text-xs font-mono text-white focus:outline-none focus:border-accent/50 transition-all placeholder:text-text-secondary/50 rounded-none shadow-inner`}
+                />
+
+                <AnimatePresence>
+                  {showSearchDropdown && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="absolute top-full left-0 right-0 mt-2 border border-border bg-background/95 backdrop-blur-xl shadow-2xl z-50 overflow-hidden"
+                    >
+                      <div
+                        ref={scrollRef}
+                        onScroll={handleSearchScroll}
+                        className="p-2 flex flex-col max-h-75 overflow-y-auto hide-scrollbar"
+                      >
+                        {isLoading && searchResults.length === 0 ? (
+                          <div className="p-4 text-center text-[10px] font-mono text-text-secondary uppercase tracking-widest">
+                            Initializing search...
+                          </div>
+                        ) : searchError ? (
+                          <div className="p-4 text-center text-[10px] font-mono text-red-500 uppercase tracking-widest">
+                            {searchError}
+                          </div>
+                        ) : searchResults.length > 0 ? (
+                          searchResults.map((resultUser) => (
+                            <button
+                              key={resultUser.firebase_uid}
+                              onClick={() => {
+                                router.push(`/profile/${resultUser.username}`);
+                                setShowSearchDropdown(false);
+                                setSearchQuery("");
+                                setIsSearchOpen(false);
+                              }}
+                              className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors text-left border-b border-border/50 last:border-none group/item"
+                            >
+                              <div className="w-8 h-8 border border-border bg-background shrink-0 flex items-center justify-center overflow-hidden">
+                                {resultUser.avatar_url ? (
+                                  <img
+                                    src={resultUser.avatar_url}
+                                    alt={resultUser.username}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="text-xs font-mono text-accent">
+                                    {(
+                                      resultUser.username?.[0] || "?"
+                                    ).toUpperCase()}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-bold text-white uppercase truncate group-hover/item:text-accent transition-colors">
+                                  {resultUser.username}
+                                </span>
+                                <span className="text-[10px] font-mono text-text-secondary truncate">
+                                  {resultUser.display_name ||
+                                    resultUser.bio ||
+                                    "No description"}
+                                </span>
+                              </div>
+                            </button>
+                          ))
+                        ) : (
+                          !isLoading && (
+                            <div className="p-4 text-center text-[10px] font-mono text-text-secondary uppercase tracking-widest">
+                              No users found for &apos;{searchQuery}&apos;
+                            </div>
+                          )
+                        )}
+                        {isLoadingMore && (
+                          <div className="p-4 flex justify-center">
+                            <Loader2 className="w-4 h-4 text-accent animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="border-t border-border p-2 bg-background/50">
+                        <div className="flex items-center justify-between text-[8px] font-mono text-text-secondary uppercase tracking-widest px-2">
+                          <span>RESULTS: {searchResults.length}</span>
+                          <span className="text-accent">QUERIED</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mobile Menu - shown below navbar when hamburger is clicked */}
+      <div ref={mobileMenuRef}>
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="lg:hidden fixed top-20 left-0 right-0 z-40 bg-background/80 backdrop-blur-sm border-b border-border"
+            >
+              <div className="max-w-360 mx-auto px-4 py-4 space-y-2">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`
+                    flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase tracking-widest transition-all duration-300
+                    ${
+                      pathname === item.href
+                        ? "text-accent bg-accent/10 border border-accent/50"
+                        : "text-text-secondary hover:text-white hover:bg-white/5"
+                    }
+                  `}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </nav>
+    </>
   );
 }

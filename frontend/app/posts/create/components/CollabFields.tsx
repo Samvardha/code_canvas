@@ -109,7 +109,7 @@ export const CollabFields = ({
                     value={lookingForInput}
                     onFocus={() => clearError("collab_looking_for")}
                     onChange={(e) => {
-                      setLookingForInput(e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase());
+                      setLookingForInput(e.target.value.replace(/[^a-zA-Z0-9 ]/g, "").replace(/  +/g, " ").toUpperCase());
                       clearError("collab_looking_for");
                     }}
                     onKeyDown={(e) => {
@@ -122,7 +122,7 @@ export const CollabFields = ({
                     className={`flex-1 bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-white/40 focus:ring-1 focus:ring-accent outline-none transition-colors ${
                       validationErrors.includes("collab_looking_for") ? "border-red-500/50" : "border-border"
                     }`}
-                    placeholder="E.G. BACKEND_DEV"
+                    placeholder="E.G. BACKEND DEV"
                   />
                   <button
                     type="button"
@@ -165,7 +165,7 @@ export const CollabFields = ({
                     value={requirementsInput}
                     onFocus={() => clearError("collab_requirements")}
                     onChange={(e) => {
-                      setRequirementsInput(e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase());
+                      setRequirementsInput(e.target.value.replace(/[^a-zA-Z0-9 ]/g, "").replace(/  +/g, " ").toUpperCase());
                       clearError("collab_requirements");
                     }}
                     onKeyDown={(e) => {
@@ -178,7 +178,7 @@ export const CollabFields = ({
                     className={`flex-1 bg-background/30 border p-4 text-sm font-mono text-white placeholder:text-white/40 focus:ring-1 focus:ring-accent outline-none transition-colors ${
                       validationErrors.includes("collab_requirements") ? "border-red-500/50" : "border-border"
                     }`}
-                    placeholder="E.G. REACT_NATIVE"
+                    placeholder="E.G. REACT NATIVE"
                   />
                   <button
                     type="button"
