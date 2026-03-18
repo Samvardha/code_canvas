@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/Button";
 
 export default function Hero() {
@@ -24,7 +25,7 @@ export default function Hero() {
 
   return (
     <section className="relative pt-16 pb-24 lg:pt-32 lg:pb-32 border-b border-border overflow-hidden">
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-12 relative z-10">
+      <div className="max-w-350 mx-auto px-6 lg:px-12 relative z-10">
         <div className="flex flex-col xl:flex-row items-center gap-12 lg:gap-20">
           <motion.div
             variants={container}
@@ -33,7 +34,7 @@ export default function Hero() {
             className="flex-1 w-full"
           >
             <div className="flex items-center gap-4 mb-8">
-              <span className="w-12 h-[2px] bg-accent"></span>
+              <span className="w-12 h-0.5 bg-accent"></span>
               <span className="text-accent text-xs font-mono uppercase tracking-widest font-bold">
                 CONNECT. COLLABORATE. CODE.
               </span>
@@ -75,9 +76,18 @@ export default function Hero() {
                 href="/login"
                 size="lg"
                 variant="primary"
-                className="group bg-accent text-black hover:bg-white w-full sm:w-auto leading-none"
+                className="group bg-white text-black hover:bg-accent w-full sm:w-auto leading-none"
               >
                 Sign Up
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Button>
+              <Button
+                href="/login"
+                size="lg"
+                variant="primary"
+                className="group bg-white text-black hover:bg-accent w-full sm:w-auto leading-none"
+              >
+                Login
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </motion.div>
