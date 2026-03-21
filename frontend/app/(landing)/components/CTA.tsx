@@ -21,7 +21,7 @@ export default function CTA() {
           <Button
             href="/login"
             size="lg"
-            className="border-black hover:bg-black hover:text-white"
+            variant="cta"
           >
             CREATE ACCOUNT
             <ArrowRight className="w-5 h-5" />
@@ -29,8 +29,7 @@ export default function CTA() {
           <Button
             href="/login"
             size="lg"
-            variant="secondary"
-            className="border-black text-black hover:bg-black hover:text-white bg-transparent"
+            variant="outline"
           >
             LOGIN
           </Button>

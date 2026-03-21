@@ -5,6 +5,7 @@ import FeatureHighlight from "./components/FeatureHighlight";
 import CommunityPreview from "./components/CommunityPreview";
 import OpenProjects from "./components/OpenProjects";
 import HowItWorks from "./components/HowItWorks";
+import MeetTheDevs from "./components/MeetTheDevs";
 import Footer from "./components/Footer";
 import CTA from "./components/CTA";
 
@@ -20,6 +21,7 @@ export default function LandingPage() {
         <HowItWorks />
         <CommunityPreview />
         <OpenProjects />
+        <MeetTheDevs />
         <CTA />
         <Footer />
       </div>

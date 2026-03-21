@@ -3,20 +3,20 @@
 export default function Features() {
   const features = [
     {
-      title: "Strictly Devs",
-      desc: "No recruiters. No marketers. An ecosystem built exclusively for shipping software engineers.",
+      title: "Three Core Feeds",
+      desc: "Navigate between Explore for ideas, Collab for team building, and Events for meetups. Powered by infinite scroll.",
     },
     {
       title: "GitHub Sync",
-      desc: "Your code is your reputation. Automatic sync integration maps your activity accurately.",
+      desc: "Securely link your GitHub profile to verify your experience and automatically showcase your tech stack.",
     },
     {
-      title: "Direct Assembly",
-      desc: "Broadcast your precise stack requirements and assemble engineering teams instantly.",
+      title: "Real-time Chat",
+      desc: "Instantly connect with peers using our global, real-time socket-based chat drawer system.",
     },
     {
-      title: "Signal Events",
-      desc: "Filter through high-signal engineering meetups, hacks, and remote pair sessions.",
+      title: "Node-based Comments",
+      desc: "Dive deep into architectural debates with a clean, hierarchically-threaded node comment system.",
     },
   ];
 

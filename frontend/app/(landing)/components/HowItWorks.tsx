@@ -6,15 +6,15 @@ export default function HowItWorks() {
   const steps = [
     {
       title: "Authenticate",
-      desc: "Link your GitHub vector. Prove your code history.",
+      desc: "Sign up and link your GitHub profile. Automatically pull your verified tech stack.",
     },
     {
-      title: "Initialize",
-      desc: "Set your technical requirements and stack bounds precisely.",
+      title: "Explore",
+      desc: "Infinite scroll through the Explore, Collab, and Events feeds to discover ideas and teams.",
     },
     {
-      title: "Execute",
-      desc: "Build in real-time. Share terminal outputs. Ship to production.",
+      title: "Connect",
+      desc: "Engage via deep node-based threaded comments and real-time socket chat.",
     },
   ];
 

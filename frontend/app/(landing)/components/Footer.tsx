@@ -77,12 +77,11 @@ export default function Footer() {
             TECH CONNECT
           </h2>
           <div className="flex w-full flex-col sm:flex-row justify-between items-center mt-8 font-mono text-xs uppercase text-text-secondary border-t border-border pt-8 font-bold gap-4">
-            <span className="opacity-50">
+            <span>
               © {new Date().getFullYear()} TECH CONNECT INC.
             </span>
             <span className="flex items-center gap-3">
-              <span className="w-2 h-2 bg-accent rounded-full animate-pulse shadow-[0_0_10px_var(--accent)]"></span>
-              ALL SYSTEMS FUNCTIONAL
+              Made with ❤️ by Team Batarang Boys
             </span>
           </div>
         </div>

@@ -5,16 +5,16 @@ import { motion } from "framer-motion";
 export default function FeatureHighlight() {
   const features = [
     {
-      title: "Symbiotic AI Matching",
+      title: "Three Dedicated Feeds",
       description:
-        "Our engine analyzes your semantic codebase graph and matches you with verified peer engineers based on exact stack compatibilities, not marketing resumes.",
-      label: "AI CORE",
+        "Tired of mixed signals? Switch instantly between the Explore Feed for general tech posts, the Collab Feed to assemble teams, and the Events Feed to discover meetups. All powered by infinite scrolling.",
+      label: "DISCOVERY",
     },
     {
-      title: "Raw Developer Feed",
+      title: "Socket Chat & Node Threads",
       description:
-        "A feed stripped of noise. We curate only daily progress logs, architectural decisions, and deployment events from builders pushing to production.",
-      label: "NETWORK",
+        "Seamlessly jump from post discussions to direct communication. Use our global chat drawer for real-time interaction, and our node-based comment threading for clean, deep architectural debates.",
+      label: "COMMUNICATION",
     },
   ];
 
@@ -64,21 +64,21 @@ export default function FeatureHighlight() {
 
                 <div className="font-mono text-sm sm:text-base space-y-4 flex-1">
                   <p className="text-white opacity-60">
-                    &gt; Requesting node analysis...
+                    &gt; GET /api/v1/feed/explore?limit=10&offset=20
                   </p>
                   <p className="text-white opacity-60 pl-4">
-                    parsing target parameters...
+                    fetching next payload...
                   </p>
                   <p className="text-white font-bold mt-4 border-l-2 border-accent pl-4">
-                    &gt; Match Engine Hit: [ENGINEER_8923AF]
+                    &gt; IntersectionObserver: sentinel visible
                   </p>
                   <div className="pl-6 space-y-2 mt-4 text-xs sm:text-sm">
                     <p className="text-text-secondary">
-                      ├─ Vectors: Rust, Go, gRPC
+                      ├─ Status: 200 OK
                     </p>
-                    <p className="text-text-secondary">├─ Latency: 12ms</p>
+                    <p className="text-text-secondary">├─ Posts Loaded: 10</p>
                     <p className="text-accent font-bold">
-                      └─ Confidence: 98.4%
+                      └─ hasMore: true
                     </p>
                   </div>
                 </div>
@@ -140,38 +140,45 @@ export default function FeatureHighlight() {
                 <div className="group border border-border p-6 bg-background hover:border-accent transition-colors duration-300">
                   <div className="flex justify-between items-center mb-4 border-b border-border/50 pb-3">
                     <p className="text-xs uppercase font-mono font-bold text-text-secondary group-hover:text-white transition-colors">
-                      Deployment Event
+                      Thread: Component Refactoring
                     </p>
                     <span className="text-xs font-mono text-accent">
                       JUST NOW
                     </span>
                   </div>
-                  <p className="text-xl sm:text-2xl text-white font-black font-(family-name:--font-space-grotesk) tracking-tight uppercase">
-                    API Gateway v2.0
-                  </p>
-                  <p className="font-mono text-text-secondary text-xs mt-4 uppercase tracking-widest font-bold">
-                    status:{" "}
-                    <span className="text-accent group-hover:animate-pulse">
-                      successful
-                    </span>
-                  </p>
+                  <div className="flex gap-4">
+                    <div className="w-px bg-border group-hover:bg-accent transition-colors ml-2"></div>
+                    <div>
+                      <p className="text-lg text-white font-bold tracking-tight">
+                        @TechLead
+                      </p>
+                      <p className="text-text-secondary text-sm mt-1">
+                        Let's extract ChatDrawer logic into useChatDrawer hook.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="group border border-border p-6 bg-background opacity-60 hover:opacity-100 transition-opacity duration-300">
                   <div className="flex justify-between items-center mb-4 border-b border-border/50 pb-3">
                     <p className="text-xs uppercase font-mono font-bold text-text-secondary">
-                      Architecture Merge
+                      Nested Reply Node
                     </p>
                     <span className="text-xs font-mono text-text-secondary">
                       2M AGO
                     </span>
                   </div>
-                  <p className="text-xl sm:text-2xl text-white font-black font-(family-name:--font-space-grotesk) tracking-tight uppercase">
-                    Migrated to Edge SQL
-                  </p>
-                  <p className="font-mono text-text-secondary text-xs mt-4 uppercase tracking-widest font-bold">
-                    status: <span className="text-white">compiling</span>
-                  </p>
+                  <div className="flex gap-4 ml-8">
+                     <div className="w-4 h-px bg-border mt-3"></div>
+                    <div>
+                      <p className="text-lg text-white/80 font-bold tracking-tight">
+                        @FrontendDev
+                      </p>
+                      <p className="text-text-secondary text-sm mt-1">
+                        Agreed, the WebSocket socket event management should be separate.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-surface to-transparent pointer-events-none"></div>

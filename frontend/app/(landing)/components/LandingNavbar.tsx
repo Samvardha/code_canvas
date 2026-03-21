@@ -13,9 +13,9 @@ export default function LandingNavbar() {
       className="sticky top-0 z-50 w-full bg-background/90 backdrop-blur-md border-b border-border"
     >
       <div className="max-w-350 mx-auto flex h-16 items-center justify-between px-6 lg:px-12">
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-4 h-4 bg-accent group-hover:scale-75 transition-transform duration-300" />
-          <span className="text-xl font-bold tracking-tighter uppercase font-(family-name:--font-space-grotesk) leading-none mt-1">
+        <Link href="/" className="flex items-center gap-2 sm:gap-3 group shrink-0">
+          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-accent rotate-45 group-hover:scale-110 transition-transform duration-300" />
+          <span className="text-sm sm:text-xl font-black tracking-tighter uppercase font-(family-name:--font-space-grotesk) mt-1">
             TECH CONNECT
           </span>
         </Link>
