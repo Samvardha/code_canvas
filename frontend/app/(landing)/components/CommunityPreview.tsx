@@ -5,24 +5,24 @@ import { motion } from "framer-motion";
 export default function CommunityPreview() {
   const logs = [
     {
-      type: "DEPLOY",
-      author: "JD_88",
-      note: "Pushed 14 commits. Migrated primary DB to Edge. Latency down 40%.",
-    },
-    {
-      type: "FORK",
-      author: "ALX_SEC",
-      note: "Cloned 'zero-trust-auth' for review. Security audit pending.",
-    },
-    {
-      type: "REQ",
+      type: "SOCKET",
       author: "SYSTEM",
-      note: "Urgent request: Local-first synced note app. Needs WASM dev.",
+      note: "Client connected. Live Chat Drawer synchronized.",
     },
     {
-      type: "MERGE",
-      author: "SARAH_JS",
-      note: "Merged PR #892. React Server Components fully integrated.",
+      type: "POST",
+      author: "JD_88",
+      note: "Broadcasted new code signal in Explore Feed.",
+    },
+    {
+      type: "THREAD",
+      author: "ALX_SEC",
+      note: "Generated nested reply node. Depth level 3 reached.",
+    },
+    {
+      type: "INDEX",
+      author: "SYSTEM",
+      note: "GitHub profile parsed. Tech stack badges mapped for search pagination.",
     },
   ];
 

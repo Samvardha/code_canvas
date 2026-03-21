@@ -63,9 +63,7 @@ export default function Hero() {
               variants={item}
               className="text-lg sm:text-xl text-text-secondary max-w-2xl leading-relaxed mb-12 font-medium"
             >
-              A brutalist developer network where the top 1% of engineers find
-              exact technical matches, share brutal truths, and ship pure code.
-              No social noise, just pure execution.
+              A brutalist developer ecosystem offering dedicated feeds for exploration, collaboration, and live events. Connect instantly with verified GitHub profiles, real-time socket chat, and deep node-based threads.
             </motion.p>
 
             <motion.div

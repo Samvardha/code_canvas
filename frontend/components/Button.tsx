@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 
-type ButtonVariant = "primary" | "secondary" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "cta" | "outline";
 type ButtonSize = "sm" | "md" | "lg";
 
 interface BaseButtonProps {
@@ -35,7 +35,11 @@ const variantClasses: Record<ButtonVariant, string> = {
   secondary:
     "bg-transparent text-white border-white hover:bg-white hover:text-black",
   ghost:
-    "bg-transparent text-text-secondary border-border hover:border-white hover:text-white",
+    "bg-transparent text-text-secondary border-border hover:border-white hover:text-black",
+  cta:
+    "bg-black text-white border-black hover:bg-transparent hover:text-black",
+  outline:
+    "border-black text-black hover:bg-black hover:text-white bg-transparent",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
