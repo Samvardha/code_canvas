@@ -11,7 +11,7 @@ import {
   removePeer,
   ConnectionStatus
 } from "@/lib/api/peers";
-import { UserPlus, UserCheck, UserX, Loader2, Clock, Check, X } from "lucide-react";
+import { UserPlus, UserCheck, UserX, Loader2, Clock, Check, X, MessageSquare } from "lucide-react";
 import Popup from "@/components/Popup";
 import Toast from "@/components/Toast";
 import { 
@@ -204,6 +204,17 @@ export default function ConnectionButton({ targetUserId, className = "", onStatu
     <>
     {status === "connected" && (
       <div className="flex gap-2">
+        <button
+          onClick={() => {
+            if (typeof window !== "undefined" && (window as any).__openChatWith) {
+              (window as any).__openChatWith(targetUserId);
+            }
+          }}
+          className="flex items-center justify-center px-3 py-2 border border-accent bg-accent text-black transition-all cursor-pointer hover:bg-transparent hover:text-accent duration-300"
+          title="Send Message"
+        >
+          <MessageSquare className="w-3 h-3" />
+        </button>
         <div className={`flex items-center gap-2 px-4 py-2 bg-accent/10 border border-accent/30 text-accent font-mono text-[10px] font-bold uppercase tracking-widest ${className}`}>
           <UserCheck className="w-3 h-3" />
           CONNECTED

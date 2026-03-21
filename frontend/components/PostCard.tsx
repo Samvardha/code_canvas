@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Heart, 
@@ -209,7 +210,10 @@ export function PostCard({
     >
       <div className={`p-4 sm:p-6 flex items-start justify-between relative z-20`}>
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 border border-border bg-background overflow-hidden relative transition-colors duration-500">
+          <Link 
+            href={`/profile/${userHandle}`}
+            className="w-12 h-12 border border-border bg-background overflow-hidden relative"
+          >
             {avatarUrl ? (
               <img
                 src={avatarUrl}
@@ -221,15 +225,18 @@ export function PostCard({
                 {username.charAt(0).toUpperCase()}
               </div>
             )}
-          </div>
+          </Link>
           <div className="flex flex-col">
-            <h3 className="text-sm font-black text-white uppercase tracking-tight leading-none mb-1.5 transition-colors">
-              {username}
-            </h3>
+            <Link href={`/profile/${userHandle}`}>
+              <h3 className="text-sm font-black text-white uppercase tracking-tight leading-none mb-1.5">
+                {username}
+              </h3>
+            </Link>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono text-text-secondary uppercase tracking-widest leading-none">
+              <Link href={`/profile/${userHandle}`} className="text-[10px] font-mono text-text-secondary uppercase tracking-widest leading-none">
                 @{userHandle}
-              </span>
+              </Link>
+
               <span className="w-0.5 h-0.5 bg-border rounded-full" />
               <div className="flex items-center gap-1.5 text-[9px] font-mono text-text-secondary/60 uppercase">
                 <div className="flex items-center gap-1">

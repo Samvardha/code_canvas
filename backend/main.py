@@ -1,20 +1,10 @@
 import os
 import logging
-
-import firebase_admin
-from firebase_admin import credentials
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from utils.firebase import initialize_firebase
+from app_factory import create_fastapi_app, create_socket_app
 
-from routes.auth import router as auth_router
-from routes.users import router as users_router
-from routes.peers import router as peers_router
-from routes.posts import router as posts_router
-from routes.comments import router as comments_router
-from routes.health import router as health_router
-from routes.ai import router as ai_router
-
+# Load environment variables
 load_dotenv()
 
 # Configure logging
@@ -23,49 +13,13 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
 )
 
-logger = logging.getLogger(__name__)
+# Initialize Firebase
+initialize_firebase()
 
-# Firebase Admin SDK Initialization
-cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "serviceAccountKey.json")
-if os.path.exists(cred_path):
-    cred = credentials.Certificate(cred_path)
-    firebase_admin.initialize_app(cred)
-else:
-    firebase_admin.initialize_app()
-
-logger.info("Firebase Admin SDK initialized")
-
-# FastAPI Application Setup
-app = FastAPI(
-    title="Tech Connect API",
-    version="1.0.0",
-    description="Backend API for Tech Connect platform",
-)
-
-@app.on_event("startup")
-async def startup_event():
-    from utils.database import ensure_indexes
-    await ensure_indexes()
-
-# CORS Middleware
+# Configure Allowed Origins
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
-allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",")]
+allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()] if allowed_origins_env.strip() else ["*"]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Route Registration
-app.include_router(auth_router)
-app.include_router(users_router)
-app.include_router(peers_router)
-app.include_router(posts_router)
-app.include_router(comments_router)
-app.include_router(health_router)
-app.include_router(ai_router)
-
-logger.info("All routes registered successfully")
+# Create Applications
+fastapi_app = create_fastapi_app(allowed_origins)
+app, sio = create_socket_app(allowed_origins, fastapi_app)

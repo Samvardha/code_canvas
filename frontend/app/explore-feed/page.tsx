@@ -40,7 +40,7 @@ export default function FeedPage() {
         syncingText="SYNCING_FEED"
         headerTitle={
           <>
-            MAIN_<span className="text-accent text-outline">FEED</span>
+            EXPLORE_<span className="text-accent text-outline">FEED</span>
           </>
         }
         actionButtonText="New_Post"

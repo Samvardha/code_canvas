@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
@@ -21,6 +22,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { searchUsers, User as SearchUser } from "@/lib/api/users";
 import { MenuDropdown } from "./MenuDropdown";
+import ChatDrawer from "./ChatDrawer";
+import ChatBadge from "./ChatBadge";
 
 export function Navbar() {
   const { user, userProfile, logout } = useAuth();
@@ -37,6 +40,11 @@ export function Navbar() {
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [offset, setOffset] = useState(0);
+  const searchParams = useSearchParams();
+  const isChatOpen = searchParams.get("chat") === "true";
+  const openChatWithUserId = searchParams.get("uid");
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -161,6 +169,34 @@ export function Navbar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  useEffect(() => {
+  }, [user]);
+
+  useEffect(() => {
+    (window as any).__openChatWith = (uid: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("chat", "true");
+      params.set("uid", uid);
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    };
+    return () => {
+      delete (window as any).__openChatWith;
+    };
+  }, [searchParams, pathname, router]);
+
+  const setIsChatOpen = (open: boolean) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (open) {
+      params.set("chat", "true");
+      params.delete("uid");
+    } else {
+      params.delete("chat");
+      params.delete("uid");
+    }
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+
   const navItems = [
     { label: "Explore", href: "/explore-feed", icon: Compass },
     { label: "Collab", href: "/collab-feed", icon: Users },
@@ -171,7 +207,6 @@ export function Navbar() {
     <>
       <nav className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-360 mx-auto h-20 px-4 sm:px-6 flex items-center justify-between gap-4 sm:gap-8">
-          {/* Logo */}
           <Link
             href="/explore-feed"
             className="flex items-center gap-2 sm:gap-3 group shrink-0"
@@ -182,28 +217,34 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop Navigation - hidden on small screens */}
-          <div className="hidden lg:flex items-center gap-1">
+          <div className="w-px h-10 bg-border hidden lg:block" />
+
+          <div className="hidden lg:flex items-center gap-2">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 className={`
-                  flex items-center gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-widest transition-all duration-300
+                  flex items-center gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-widest transition-colors duration-200
                   ${
                     pathname === item.href
                       ? "text-accent border-b-2 border-accent"
-                      : "text-text-secondary hover:text-white hover:bg-white/5"
+                      : "text-text-secondary hover:text-white hover:bg-white/10"
                   }
                 `}
               >
-                <item.icon className="w-4 h-4" />
+                {/* <item.icon className="w-4 h-4" /> */}
                 {item.label}
               </Link>
             ))}
           </div>
 
           <div className="flex items-center gap-3 sm:gap-6 flex-1 justify-end">
+            <ChatBadge
+              onClick={() => setIsChatOpen(true)}
+              unreadCount={chatUnreadCount}
+            />
+
             {/* Desktop Search */}
             <div
               className="relative w-64 lg:w-68 hidden md:block group transition-all duration-300"
@@ -612,6 +653,26 @@ export function Navbar() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Chat Drawer */}
+      <ChatDrawer
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        openWithUserId={openChatWithUserId}
+        onSelectUser={(uid) => {
+          const params = new URLSearchParams(searchParams.toString());
+          params.set("chat", "true");
+          params.set("uid", uid);
+          router.push(`${pathname}?${params.toString()}`, { scroll: false });
+        }}
+        onBackToList={() => {
+          const params = new URLSearchParams(searchParams.toString());
+          params.set("chat", "true");
+          params.delete("uid");
+          router.push(`${pathname}?${params.toString()}`, { scroll: false });
+        }}
+        onUnreadCountChange={setChatUnreadCount}
+      />
     </>
   );
 }

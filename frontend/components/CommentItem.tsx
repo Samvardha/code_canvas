@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import React, { useState } from "react";
 import { 
   Heart, 
@@ -139,27 +141,29 @@ export function CommentItem({
       <div className="py-3 sm:py-4 border-b border-white/20 last:border-b-0 space-y-1.5 sm:space-y-2">
         {/* Header: Auth/Time and Menu */}
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            {/* Avatar - SQUARE */}
-            <div className="w-8 h-8 rounded-none border border-white/10 bg-black overflow-hidden shrink-0">
-              {comment.author?.avatar_url ? (
-                <img src={comment.author.avatar_url} alt={comment.author.username} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-accent/50 font-black text-[10px] font-mono">
-                  {(comment.author?.name || "?")[0].toUpperCase()}
-                </div>
-              )}
-            </div>
+            <Link href={`/profile/${comment.author?.username || comment.author_id}`}>
+              <div className="w-8 h-8 rounded-none border border-white/10 bg-black overflow-hidden shrink-0 hover:border-accent transition-colors">
+                {comment.author?.avatar_url ? (
+                  <img src={comment.author.avatar_url} alt={comment.author.username} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-accent/50 font-black text-[10px] font-mono">
+                    {(comment.author?.name || "?")[0].toUpperCase()}
+                  </div>
+                )}
+              </div>
+            </Link>
             
             <div className="flex flex-col">
-              <span className="text-[10px] sm:text-[11px] font-mono font-black text-white uppercase tracking-wider">
-                {comment.author?.username || "ANONYMOUS_ENTITY"}
-              </span>
+              <Link href={`/profile/${comment.author?.username || comment.author_id}`}>
+                <span className="text-[10px] sm:text-[11px] font-mono font-black text-white uppercase tracking-wider hover:text-accent transition-colors">
+                  {comment.author?.username || "ANONYMOUS_ENTITY"}
+                </span>
+              </Link>
               <span className="text-[7px] sm:text-[8px] font-mono text-text-secondary/30 font-bold uppercase tracking-widest">
                 {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true }).replace('about ', '')}
               </span>
             </div>
-          </div>
+
 
           {/* Menu Dots */}
           {isOwner && (

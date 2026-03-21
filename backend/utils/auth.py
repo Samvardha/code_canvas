@@ -1,4 +1,5 @@
 import logging
+import asyncio
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -18,7 +19,7 @@ async def get_current_uid(
     """
     token = credentials.credentials
     try:
-        decoded = auth.verify_id_token(token)
+        decoded = await asyncio.to_thread(auth.verify_id_token, token)
         uid = decoded["uid"]
         logger.debug("✅ Verified Firebase ID token for uid=%s", uid)
         return uid

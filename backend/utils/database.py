@@ -49,6 +49,16 @@ async def get_comment_likes_collection():
     return db.get_collection("comment_likes")
 
 
+async def get_conversations_collection():
+    """Dependency to get the MongoDB conversations collection."""
+    return db.get_collection("conversations")
+
+
+async def get_messages_collection():
+    """Dependency to get the MongoDB messages collection."""
+    return db.get_collection("messages")
+
+
 async def ensure_indexes():
     """Create necessary database indexes."""
     try:
@@ -95,6 +105,24 @@ async def ensure_indexes():
         # Indexes for comment_likes
         comment_likes = await get_comment_likes_collection()
         await comment_likes.create_index([("comment_id", 1), ("user_id", 1)], unique=True, background=True)
+
+        # Indexes for conversations
+        conversations = await get_conversations_collection()
+        # participants index should NOT be unique because it's an array (multi-key).
+        # We drop the old one if it might have had the unique constraint.
+        try:
+            await conversations.drop_index("participants_1")
+        except Exception:
+            pass
+        await conversations.create_index("participants", background=True)
+        await conversations.create_index([("updated_at", -1)], background=True)
+        await conversations.create_index([("participants", 1), ("updated_at", -1), ("_id", -1)], background=True)
+
+
+
+        # Indexes for messages
+        messages = await get_messages_collection()
+        await messages.create_index([("conversation_id", 1), ("created_at", -1), ("_id", -1)], background=True)
 
         print("Successfully ensured database indexes.")
     except Exception as e:
