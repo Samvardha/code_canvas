@@ -141,6 +141,7 @@ export function CommentItem({
       <div className="py-3 sm:py-4 border-b border-white/20 last:border-b-0 space-y-1.5 sm:space-y-2">
         {/* Header: Auth/Time and Menu */}
         <div className="flex items-start justify-between">
+          <div className="flex items-end gap-3">
             <Link href={`/profile/${comment.author?.username || comment.author_id}`}>
               <div className="w-8 h-8 rounded-none border border-white/10 bg-black overflow-hidden shrink-0 hover:border-accent transition-colors">
                 {comment.author?.avatar_url ? (
@@ -163,7 +164,7 @@ export function CommentItem({
                 {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true }).replace('about ', '')}
               </span>
             </div>
-
+          </div>
 
           {/* Menu Dots */}
           {isOwner && (

@@ -431,9 +431,13 @@ export function Navbar() {
                   {
                     label: "Terminate Session",
                     icon: LogOut,
-                    onClick: () => {
-                      logout();
+                    onClick: async () => {
                       setIsDropdownOpen(false);
+                      try {
+                        await logout();
+                      } catch (error) {
+                        console.error("Logout failed:", error);
+                      }
                       router.push("/login");
                     },
                     variant: "danger",
@@ -484,9 +488,13 @@ export function Navbar() {
                   {
                     label: "Terminate Session",
                     icon: LogOut,
-                    onClick: () => {
-                      logout();
+                    onClick: async () => {
                       setIsDropdownOpen(false);
+                      try {
+                        await logout();
+                      } catch (error) {
+                        console.error("Logout failed:", error);
+                      }
                       router.push("/login");
                     },
                     variant: "danger",
