@@ -1,8 +1,8 @@
 import logging
+import asyncio
 from pymongo.errors import DuplicateKeyError
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from firebase_admin import auth
-
 from models.auth import SessionRequest, SessionResponse
 from models.user import OnboardingRequest
 from services.user import UserService
@@ -24,14 +24,14 @@ async def create_session(request: SessionRequest, background_tasks: BackgroundTa
     For Google provider, extracts profile data (name, avatar, location).
     """
     try:
-        decoded_token = auth.verify_id_token(request.id_token)
+        decoded_token = await asyncio.to_thread(auth.verify_id_token, request.id_token)
         uid = decoded_token["uid"]
         email = decoded_token.get("email", "") or request.email or ""
 
         # Fallback: fetch email from Firebase Admin if not available
         if not email:
             try:
-                firebase_user = auth.get_user(uid)
+                firebase_user = await asyncio.to_thread(auth.get_user, uid)
                 email = firebase_user.email or ""
                 if not email and firebase_user.provider_data:
                     for provider in firebase_user.provider_data:

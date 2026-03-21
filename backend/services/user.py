@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from firebase_admin import auth
 from utils.database import get_users_collection
 
@@ -277,6 +277,42 @@ class UserService:
                 extra={"uid": uid},
             )
             raise
+
+    @staticmethod
+    async def fetch_chat_profiles(uids: List[str]) -> List[Dict[str, Any]]:
+        """
+        Fetch lightweight user profiles (name, username, avatar) for chat cards.
+        
+        Args:
+            uids: List of Firebase user IDs
+            
+        Returns:
+            List of minimal user profile objects
+        """
+        try:
+            collection = await get_users_collection()
+            projection = {
+                "_id": 1,
+                "profile.name": 1,
+                "profile.username": 1,
+                "profile.avatar_url": 1,
+            }
+            cursor = collection.find({"_id": {"$in": uids}}, projection)
+            users = await cursor.to_list(length=len(uids))
+
+            results = []
+            for u in users:
+                results.append({
+                    "user_id": u["_id"],
+                    "name": u.get("profile", {}).get("name", "Unknown"),
+                    "username": u.get("profile", {}).get("username", "unknown"),
+                    "avatar_url": u.get("profile", {}).get("avatar_url", ""),
+                })
+            return results
+
+        except Exception:
+            logger.error("Failed to fetch chat profiles", exc_info=True, extra={"uids": uids})
+            return []
 
     @staticmethod
     async def fetch_user_by_username(username: str) -> Optional[Dict[str, Any]]:

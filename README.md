@@ -7,16 +7,17 @@ A full-stack developer collaboration platform built with **Next.js 16** and **Fa
 ## 🚀 Features
 
 - **Authentication** — Firebase Auth (Google, GitHub, Email/Password) with secure token verification via the Admin SDK
-- **User Profiles** — Onboarding flow, avatar uploads (Cloudinary), skills, bio, and profile completion tracking
-- **GitHub Integration** — OAuth linking, pinned repos, language stats, activity feed, and identity display
-- **User Search** — Debounced, regex-based search with secure field projection and keyboard shortcut (⌘/Ctrl+K)
+- **Real-Time Chat** — Socket.IO powered direct messaging, routing integration, and a dedicated `ChatDrawer` with optimistic UI
+- **User Profiles** — Onboarding flow, refined avatar uploads (preview & manual confirm via Cloudinary), skills, bio, and progress tracking
+- **GitHub Integration** — OAuth linking, pinned repos, language stats, active feed, AES-encrypted token storage with system fallback
+- **User Search** — Debounced, regex-based paginated search with infinite scroll and keyboard shortcut (⌘/Ctrl+K)
 - **Public Profiles** — View any user's profile via `/profile/[username]` dynamic routes
-- **Posts & Feed** — Create, edit, delete, and view posts with markdown support, media attachments, and category tags (collab, event, explore)
+- **Posts & Feed** — Dedicated post creation page, markdown support, media attachments. Infinite scroll feeds for `collab`, `event`, and `explore`
 - **Post Interactions** — Like/unlike posts with real-time count updates and optimistic UI rendering
-- **Comments & Replies** — Nested threaded comments with auto-capitalization, validation, and per-line responsive sizing
+- **Comments & Replies** — Integrated node-based UI with clear thread visuals, nesting, auto-capitalization, and responsive side actions
 - **Comment Interactions** — Like/unlike comments, delete comments (cascade deletes replies), proper authorization
 - **Peer Connections** — Send/accept connection requests and manage peer relationships
-- **Dark Brutalist UI** — Custom design system with accent borders, monospace typography, and Framer Motion animations
+- **Dark Brutalist UI** — Custom design system with distinct `Toast` / `Popup` components, monospace typography, and Framer Motion animations
 
 ---
 
@@ -25,13 +26,14 @@ A full-stack developer collaboration platform built with **Next.js 16** and **Fa
 ```text
 code_canvas/
 ├── backend/                    # FastAPI Application
-│   ├── main.py                 # App setup, CORS, route registration
+│   ├── main.py                 # App setup, CORS, route registration, Socket.IO
 │   ├── models/
 │   │   ├── auth.py             # Auth request/response models
 │   │   ├── user.py             # Profile, Stats, Providers, Settings models
 │   │   ├── post.py             # Post creation, response models with media & categories
 │   │   ├── comment.py          # Comment/reply models with author & like stats
 │   │   ├── peers.py            # Peer request and connection models
+│   │   ├── chat.py             # Chat message, conversation models
 │   │   └── ai.py               # AI signal generation request model
 │   ├── routes/
 │   │   ├── auth.py             # Login, onboarding, session endpoints
@@ -47,7 +49,11 @@ code_canvas/
 │   │   ├── post.py             # Post CRUD, like management, count tracking
 │   │   ├── comment.py          # Comment/reply CRUD, tree building, likes
 │   │   ├── peers.py            # Connection request & peer management
+│   │   ├── chat.py             # Chat message persistence and retrieval
 │   │   └── ai.py               # AI signal generation logic
+│   ├── socket_handlers/        # Real-time WebSocket event listeners
+│   │   ├── chat.py             # Messaging and conversational events
+│   │   └── core.py             # Base socket connection event handlers
 │   ├── utils/
 │   │   ├── auth.py             # Firebase token verification dependency
 │   │   ├── database.py         # MongoDB connection & indexes
@@ -66,33 +72,35 @@ code_canvas/
     │   ├── onboarding/page.tsx # Profile setup flow
     │   ├── posts/
     │   │   └── create/page.tsx # Post creation page with media & category selection
-    │   ├── collab-feed/page.tsx # Collaboration focused feed
-    │   ├── explore-feed/page.tsx # Discovery feed
-    │   ├── events-feed/page.tsx # Events focused feed
+    │   ├── collab-feed/page.tsx # Collaboration focused feed (Infinite Scroll)
+    │   ├── explore-feed/page.tsx # Discovery feed (Infinite Scroll)
+    │   ├── events-feed/page.tsx # Events focused feed (Infinite Scroll)
     │   ├── profile/
     │   │   ├── page.tsx        # Authenticated user's profile
     │   │   └── [username]/page.tsx  # Public profile view
     │   └── globals.css         # Global styles
     ├── components/             # Reusable UI components
     │   ├── Navbar.tsx & NavbarWrapper.tsx  # Navigation with search
+    │   ├── ChatDrawer.tsx      # Real-time direct messaging drawer
+    │   ├── ChatMessageBubble.tsx # Message bubble for chat
     │   ├── PostCard.tsx        # Feed post with interactions
     │   ├── CommentForm.tsx     # Comment & reply input with auto-capitalization
-    │   ├── CommentItem.tsx     # Individual comment with nested replies
+    │   ├── CommentItem.tsx     # Node-based comment with nested replies
     │   ├── CommentSection.tsx  # Comments container with tree rendering
     │   ├── Toast.tsx           # Error/success notifications
     │   ├── Button.tsx          # Reusable button component
     │   ├── Popup.tsx           # Confirmation dialogs
-    │   ├── Banner.tsx          # Hero/section header
-    │   ├── FeedLayout.tsx      # Feed page container
+    │   ├── AvatarUploadModal.tsx # Avatar staging and manual upload
     │   └── ...                 # Landing page & modal components
     ├── contexts/
     │   └── AuthContext.tsx     # Firebase auth state & backend sync
     ├── hooks/
+    │   ├── useChatDrawer.ts    # Chat routing, UI state, and logic
+    │   ├── useSocket.ts        # Socket.IO client connection hook
+    │   ├── useIntersectionObserver.ts # Infinite scroll trigger observer
+    │   ├── useFeed.ts          # Feed data fetching with pagination & infinite scroll
     │   ├── useCreatePost.ts    # Post creation hook
-    │   ├── useFeed.ts          # Feed data fetching with pagination
     │   ├── useGithubRepos.ts   # GitHub repos integration
-    │   ├── useMediaManager.ts  # Media upload management
-    │   ├── useDebounce.ts      # Debouncing utility
     │   └── ...                 # Other custom hooks
     ├── lib/
     │   ├── firebase.ts         # Firebase client initialization
@@ -100,11 +108,11 @@ code_canvas/
     │   ├── api/
     │   │   ├── client.ts       # API base URL & header utilities
     │   │   ├── auth.ts         # Authentication endpoints
-    │   │   ├── users.ts        # User search & profile endpoints
+    │   │   ├── users.ts        # Paginated user search & profile endpoints
     │   │   ├── posts.ts        # Post create, read, like endpoints
     │   │   ├── comments.ts     # Comment, reply, like endpoints
     │   │   ├── peers.ts        # Connection request endpoints
-    │   │   └── ai.ts           # AI signal generation endpoint
+    │   │   └── ...
     │   └── utils/
     │       └── validation.ts   # Input validation & sanitization (comments, usernames, etc.)
     ├── package.json
@@ -308,6 +316,13 @@ npm run dev
 - `GET /peers/connections` — List user's peers
 - `GET /peers/requests` — List pending requests
 
+### Real-Time Chat (Socket.IO)
+- `emit("send_message", { conversationId, text })` — Send a direct message
+- `emit("typing", { conversationId, isTyping })` — Broadcast typing indicator
+- `emit("mark_as_read", { conversationId })` — Mark messages as read
+- `on("new_message")` — Receive incoming messages in real-time
+- `on("user_typing")` — Receive typing status updates
+
 ### Health
 - `GET /health` — API health check with DB ping
 
@@ -317,9 +332,9 @@ npm run dev
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | Next.js 16, React 19, Tailwind CSS v4, Framer Motion, Lucide Icons, date-fns |
-| Backend | FastAPI, Motor (async MongoDB), Firebase Admin SDK, Pydantic |
-| Database | MongoDB Atlas (collections: users, posts, post_likes, comments, comment_likes, peers, peer_requests) |
+| Frontend | Next.js 16, React 19, Tailwind CSS v4, Framer Motion, Lucide Icons, date-fns, Socket.IO Client |
+| Backend | FastAPI, Motor (async MongoDB), Firebase Admin SDK, Pydantic, python-socketio, google-genai |
+| Database | MongoDB Atlas (collections: users, posts, post_likes, comments, comment_likes, peers, peer_requests, conversations, messages) |
 | Auth | Firebase Authentication (Google, GitHub, Email/Password) |
 | Storage | Cloudinary (media and avatars) |
 | Encryption | Fernet (OAuth token encryption) |

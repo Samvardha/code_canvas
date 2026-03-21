@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { Navbar } from "./Navbar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,7 +20,9 @@ export function NavbarWrapper({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {showNavbar && <Navbar />}
+      <Suspense fallback={<div className="h-20 bg-background border-b border-border" />}>
+        {showNavbar && <Navbar />}
+      </Suspense>
       {children}
     </>
   );
