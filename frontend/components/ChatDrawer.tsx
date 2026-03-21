@@ -12,6 +12,7 @@ import {
 import { useChatDrawer } from "@/hooks/useChatDrawer";
 import ConversationListItem from "./ConversationListItem";
 import ChatMessageBubble from "./ChatMessageBubble";
+import Toast from "./Toast";
 
 interface ChatDrawerProps {
   isOpen: boolean;
@@ -55,11 +56,14 @@ export default function ChatDrawer({
     getOtherUid,
     openConversation,
     currentUid,
+    toastMessage,
+    setToastMessage,
   } = useChatDrawer({
     isOpen,
     openWithUserId,
     onSelectUser,
     onUnreadCountChange,
+    onBackToList,
   });
 
   // ── Scroll Lock ───────────────────────────────────────────
@@ -88,6 +92,7 @@ export default function ChatDrawer({
   // ── Render ────────────────────────────────────────────────
 
   return (
+    <>
     <AnimatePresence>
       {isOpen && (
         <>
@@ -335,5 +340,12 @@ export default function ChatDrawer({
         </>
       )}
     </AnimatePresence>
+
+    <Toast
+      isVisible={!!toastMessage}
+      message={toastMessage || ""}
+      onClose={() => setToastMessage(null)}
+    />
+    </>
   );
 }
