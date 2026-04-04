@@ -9,6 +9,8 @@ class NotificationType(str, Enum):
     """Classification of notification trigger events."""
     LIKE = "like"
     COMMENT = "comment"
+    COMMENT_LIKE = "comment_like"
+    COMMENT_REPLY = "comment_reply"
     PEER_REQUEST = "peer_request"
     PEER_ACCEPT = "peer_accept"
 
