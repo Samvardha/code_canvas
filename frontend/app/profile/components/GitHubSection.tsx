@@ -36,10 +36,10 @@ export function GitHubSection({
 }: GitHubSectionProps) {
   if (ghLoading) {
     return (
-      <div className="border border-border bg-surface p-12 flex items-center justify-center mt-8">
-        <div className="font-mono text-accent text-sm uppercase tracking-widest font-bold animate-pulse flex items-center gap-3">
-          <div className="w-4 h-4 bg-accent rotate-45"></div>[
-          SYNCHRONIZING_GITHUB_CORE ]
+      <div className="border border-border bg-surface p-8 sm:p-12 flex items-center justify-center mt-8">
+        <div className="font-mono text-accent text-[10px] sm:text-sm uppercase tracking-widest font-bold animate-pulse flex items-center gap-3 text-center">
+          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-accent rotate-45 shrink-0"></div>
+          [ SYNCHRONIZING_GITHUB_CORE ]
         </div>
       </div>
     );

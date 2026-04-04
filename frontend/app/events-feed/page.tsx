@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { PostCard } from "@/components/PostCard";
+import { PostCardSkeleton } from "@/components/PostCardSkeleton";
 import { getEventsFeed } from "@/lib/api/posts";
 import { FeedLayout } from "@/components/FeedLayout";
 import { useFeed } from "@/hooks/useFeed";
@@ -55,9 +56,9 @@ export default function EventsFeedPage() {
         }
       >
         {loading ? (
-          <div className="p-20 flex flex-col items-center justify-center gap-4 bg-black">
-            <Loader2 className="w-8 h-8 text-accent animate-spin" />
-            <span className="text-[10px] font-mono text-accent uppercase tracking-widest">Intercepting_Events...</span>
+          <div className="flex flex-col gap-px bg-border">
+            <PostCardSkeleton />
+            <PostCardSkeleton />
           </div>
         ) : posts.length > 0 ? (
           <>

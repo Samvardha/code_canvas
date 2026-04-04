@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { PostCard } from "@/components/PostCard";
+import { PostCardSkeleton } from "@/components/PostCardSkeleton";
 import Toast from "@/components/Toast";
 import { getUserPosts, Post } from "@/lib/api/posts";
 import { Loader2, PlusSquare, Cpu } from "lucide-react";
@@ -70,9 +71,9 @@ export default function UserPostsPage() {
 
       <div className="flex flex-col gap-px bg-border">
         {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center gap-4">
-            <Loader2 className="w-8 h-8 text-accent animate-spin" />
-            <span className="text-[10px] font-mono text-accent uppercase tracking-widest">Decrypting_Signals...</span>
+          <div className="flex flex-col gap-px bg-border">
+            <PostCardSkeleton />
+            <PostCardSkeleton />
           </div>
         ) : posts.length > 0 ? (
           <AnimatePresence initial={false}>

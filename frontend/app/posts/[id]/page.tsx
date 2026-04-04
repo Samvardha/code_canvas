@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPost, Post } from "@/lib/api/posts";
 import { PostCard } from "@/components/PostCard";
+import { PostCardSkeleton } from "@/components/PostCardSkeleton";
 import { FeedLayout } from "@/components/FeedLayout";
 import { Loader2, AlertCircle, ArrowLeft, TrendingUp } from "lucide-react";
 import Toast from "@/components/Toast";
@@ -96,9 +97,8 @@ export default function SinglePostPage() {
         }
       >
         {loading || authLoading ? (
-          <div className="p-20 flex flex-col items-center justify-center gap-4 bg-black min-h-[50vh]">
-            <Loader2 className="w-8 h-8 text-accent animate-spin" />
-            <span className="text-[10px] font-mono text-accent uppercase tracking-widest">DECRYPTING_PACKETS...</span>
+          <div className="pt-0">
+            <PostCardSkeleton />
           </div>
         ) : post ? (
           <div className="pt-0">
