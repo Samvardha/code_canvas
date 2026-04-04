@@ -21,12 +21,17 @@ import {
   Bell,
   MessageSquare,
 } from "lucide-react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+
 import { searchUsers, User as SearchUser } from "@/lib/api/users";
 import { MenuDropdown } from "./MenuDropdown";
-import ChatDrawer from "./ChatDrawer";
 import BadgeIcon from "./BadgeIcon";
-import NotificationPanel from "./NotificationDrawer";
+import dynamic from "next/dynamic";
+
+const ChatDrawer = dynamic(() => import("./ChatDrawer"), { ssr: false });
+const NotificationPanel = dynamic(() => import("./NotificationDrawer"), { ssr: false });
+
 
 export function Navbar() {
   const { user, userProfile, logout } = useAuth();
@@ -174,9 +179,6 @@ export function Navbar() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  useEffect(() => {
-  }, [user]);
 
   useEffect(() => {
     (window as any).__openChatWith = (uid: string) => {
@@ -328,12 +330,13 @@ export function Navbar() {
                             }}
                             className="w-full flex items-center gap-4 p-3 hover:bg-white/5 transition-colors text-left border-b border-border/50 last:border-none group/item"
                           >
-                            <div className="w-10 h-10 border border-border bg-background shrink-0 flex items-center justify-center overflow-hidden">
+                            <div className="w-10 h-10 border border-border bg-background shrink-0 flex items-center justify-center overflow-hidden relative">
                               {resultUser.avatar_url ? (
-                                <img
+                                <Image
                                   src={resultUser.avatar_url}
                                   alt={resultUser.username}
-                                  className="w-full h-full object-cover"
+                                  fill
+                                  className="object-cover"
                                 />
                               ) : (
                                 <span className="text-xs font-mono text-accent">
@@ -343,6 +346,7 @@ export function Navbar() {
                                 </span>
                               )}
                             </div>
+
                             <div className="flex flex-col min-w-0">
                               <span className="text-xs font-bold text-white uppercase truncate group-hover/item:text-accent transition-colors">
                                 {resultUser.username}
@@ -413,12 +417,13 @@ export function Navbar() {
                     @{profile?.username || "identity"}
                   </span>
                 </div>
-                <div className="w-10 h-10 border border-border bg-background overflow-hidden shrink-0 transition-colors">
+                <div className="w-10 h-10 border border-border bg-background overflow-hidden shrink-0 transition-colors relative">
                   {profile?.avatar_url ? (
-                    <img
+                    <Image
                       src={profile.avatar_url}
                       alt="avatar"
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-accent/10 text-accent font-bold text-xs font-mono uppercase">
@@ -426,6 +431,7 @@ export function Navbar() {
                     </div>
                   )}
                 </div>
+
                 <ChevronDown
                   className={`w-4 h-4 text-text-secondary transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}
                 />
@@ -473,12 +479,13 @@ export function Navbar() {
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className={`flex items-center transition-all cursor-pointer ${isDropdownOpen ? "bg-white/5" : ""}`}
               >
-                <div className="w-7 h-7 border border-border bg-background overflow-hidden shrink-0 transition-colors">
+                <div className="w-7 h-7 border border-border bg-background overflow-hidden shrink-0 transition-colors relative">
                   {profile?.avatar_url ? (
-                    <img
+                    <Image
                       src={profile.avatar_url}
                       alt="avatar"
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-accent/10 text-accent font-bold text-xs font-mono uppercase">
@@ -486,6 +493,7 @@ export function Navbar() {
                     </div>
                   )}
                 </div>
+
               </button>
 
               <MenuDropdown
@@ -591,12 +599,13 @@ export function Navbar() {
                               }}
                               className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors text-left border-b border-border/50 last:border-none group/item"
                             >
-                              <div className="w-8 h-8 border border-border bg-background shrink-0 flex items-center justify-center overflow-hidden">
+                              <div className="w-8 h-8 border border-border bg-background shrink-0 flex items-center justify-center overflow-hidden relative">
                                 {resultUser.avatar_url ? (
-                                  <img
+                                  <Image
                                     src={resultUser.avatar_url}
                                     alt={resultUser.username}
-                                    className="w-full h-full object-cover"
+                                    fill
+                                    className="object-cover"
                                   />
                                 ) : (
                                   <span className="text-xs font-mono text-accent">
@@ -606,6 +615,7 @@ export function Navbar() {
                                   </span>
                                 )}
                               </div>
+
                               <div className="flex flex-col min-w-0">
                                 <span className="text-xs font-bold text-white uppercase truncate group-hover/item:text-accent transition-colors">
                                   {resultUser.username}

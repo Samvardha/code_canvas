@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Github, Mail, Globe } from "lucide-react";
+import Image from "next/image";
 
 export default function MeetTheDevs() {
   const devs = [
@@ -54,10 +55,12 @@ export default function MeetTheDevs() {
               </div>
 
               <div className="w-48 h-48 mb-8 relative border border-border group-hover:border-accent transition-colors duration-500 flex items-center justify-center bg-black overflow-hidden shadow-[4px_4px_0px_var(--border)] group-hover:shadow-[4px_4px_0px_var(--accent)] mt-4">
-                <img 
+                <Image 
                   src={dev.avatar} 
                   alt={dev.name}
-                  className="w-full h-full object-cover p-2 opacity-80 group-hover:opacity-100 transition-opacity duration-500"
+                  fill
+                  sizes="192px"
+                  className="object-cover p-2 opacity-80 group-hover:opacity-100 transition-opacity duration-500"
                 />
               </div>
 

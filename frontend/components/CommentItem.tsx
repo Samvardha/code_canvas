@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-
-import React, { useState } from "react";
+import Image from "next/image";
+import { useState } from "react";
 import { 
   Heart, 
   Trash2, 
@@ -143,9 +143,15 @@ export function CommentItem({
         <div className="flex items-start justify-between">
           <div className="flex items-end gap-3">
             <Link href={`/profile/${comment.author?.username || comment.author_id}`}>
-              <div className="w-8 h-8 rounded-none border border-white/10 bg-black overflow-hidden shrink-0 hover:border-accent transition-colors">
+              <div className="w-8 h-8 rounded-none border border-white/10 bg-black overflow-hidden shrink-0 hover:border-accent transition-colors relative">
                 {comment.author?.avatar_url ? (
-                  <img src={comment.author.avatar_url} alt={comment.author.username} className="w-full h-full object-cover" />
+                  <Image 
+                    src={comment.author.avatar_url} 
+                    alt={comment.author.username} 
+                    fill
+                    sizes="32px"
+                    className="object-cover" 
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-accent/50 font-black text-[10px] font-mono">
                     {(comment.author?.name || "?")[0].toUpperCase()}
@@ -153,7 +159,7 @@ export function CommentItem({
                 )}
               </div>
             </Link>
-            
+
             <div className="flex flex-col">
               <Link href={`/profile/${comment.author?.username || comment.author_id}`}>
                 <span className="text-[10px] sm:text-[11px] font-mono font-black text-white uppercase tracking-wider hover:text-accent transition-colors">

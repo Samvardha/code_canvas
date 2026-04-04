@@ -1,5 +1,5 @@
-import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Conversation } from "@/lib/api/chat";
 import { formatRelativeTime, truncate } from "@/lib/utils/formatters";
 
@@ -34,15 +34,17 @@ export default function ConversationListItem({
           e.stopPropagation();
           onClose();
         }}
-        className={`w-10 h-10 shrink-0 border bg-surface flex items-center justify-center overflow-hidden transition-colors duration-300 ${
+        className={`w-10 h-10 shrink-0 border bg-surface flex items-center justify-center overflow-hidden transition-colors duration-300 relative ${
           hasUnread ? "border-accent/40" : "border-border"
         }`}
       >
         {conv.participant_profiles?.[otherUid]?.avatar_url ? (
-          <img
+          <Image
             src={conv.participant_profiles[otherUid].avatar_url}
             alt=""
-            className="w-full h-full object-cover"
+            fill
+            sizes="40px"
+            className="object-cover"
           />
         ) : (
           <span className="text-[10px] font-mono font-bold text-accent">
