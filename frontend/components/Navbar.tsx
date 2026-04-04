@@ -45,7 +45,8 @@ export function Navbar() {
   const openChatWithUserId = searchParams.get("uid");
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const desktopDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -55,10 +56,10 @@ export function Navbar() {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as Node;
+      const insideDesktop = desktopDropdownRef.current?.contains(target);
+      const insideMobile = mobileDropdownRef.current?.contains(target);
+      if (!insideDesktop && !insideMobile) {
         setIsDropdownOpen(false);
       }
       if (
@@ -380,7 +381,7 @@ export function Navbar() {
             </button>
 
             {/* Desktop User Menu (with name and username) */}
-            <div className="relative hidden lg:block" ref={dropdownRef}>
+            <div className="relative hidden lg:block" ref={desktopDropdownRef}>
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className={`flex items-center gap-4 p-2 transition-all cursor-pointer group ${isDropdownOpen ? "bg-white/5" : "hover:bg-white/5"}`}
@@ -448,7 +449,7 @@ export function Navbar() {
             </div>
 
             {/* Mobile User Menu (profile pic only) */}
-            <div className="relative lg:hidden" ref={dropdownRef}>
+            <div className="relative lg:hidden" ref={mobileDropdownRef}>
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className={`flex items-center transition-all cursor-pointer ${isDropdownOpen ? "bg-white/5" : "hover:bg-white/5"}`}
