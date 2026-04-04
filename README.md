@@ -15,9 +15,9 @@ A full-stack developer collaboration platform built with **Next.js 16** and **Fa
 - **User Search** — Debounced, regex-based paginated search with infinite scroll and keyboard shortcut (⌘/Ctrl+K)
 - **Public Profiles** — View any user's profile via `/profile/[username]` dynamic routes
 - **Posts & Feed** — Dedicated post creation page, markdown support, media attachments. Infinite scroll feeds for `collab`, `event`, and `explore`
-- **Post Interactions** — Like/unlike posts with real-time count updates and optimistic UI rendering
-- **Comments & Replies** — Integrated node-based UI with clear thread visuals, nesting, auto-capitalization, and responsive side actions
-- **Comment Interactions** — Like/unlike comments, delete comments (cascade deletes replies), proper authorization
+- **Post Interactions** — Like/unlike posts with surgical TanStack Query caching for optimistic UI rendering and synchronized counts across all feeds
+- **Comments & Replies** — Integrated node-based UI with infinite-depth cascading deletes, proper authorization, and automatic notification purges
+- **Comment Interactions** — Like/unlike comments seamlessly with recursive count synchronization back to the parent post
 - **Peer Connections** — Real-time peer requests, accept/reject lifecycle, and mutual relationship management
 - **Dark Brutalist UI** — Custom design system with distinct `SideDrawer` architecture, monospace typography, and Framer Motion animations
 
@@ -259,8 +259,8 @@ npm run dev
   - `GET /posts/{postId}/comments` — Fetch comment tree
   - `DELETE /comments/{commentId}` — Delete comment & replies
   - `POST /comments/{commentId}/like` — Toggle comment like
-- **Collections**: `comments` (with indexes on `post_id`, `parent_comment_id`) and `comment_likes`
-- **Service Logic** — Builds nested tree structure with O(n) complexity, manages like counts atomically
+- **Collections**: `comments` (with indexes on `post_id`, `parent_comment_id`), and `comment_likes`
+- **Service Logic** — Builds nested tree structures, manages atomic counts, and recursively executes `$graphLookup` to fully cascade deletes across infinite-depth sub-threads without orphaning data.
 
 ---
 
@@ -278,9 +278,11 @@ npm run dev
   - User interactions → Directed to `/profile/@username`
 
 ### Implementation Details
-- **Cleanup Architecture** — Opening a notification automatically marks it as read in the DB, reducing unnecessary bandwidth.
-- **Frontend Hook** — `useNotifications.ts` manages the local state, unread counts, and socket subscriptions.
-- **Visual Feedback** — Monospace alert styling with timestamp formatting and high-contrast "seen" states.
+- **Surgical Syncing** — The engine leverages TanStack React Query to surgically inject cache state (`setQueryData`), keeping Feed pages and Details pages in lockstep without expensive refetches.
+- **Ghost Interception** — Automatically traps 404 "Ghost Notifications" arising from un-likes or deleted posts, gracefully purging them directly from UI memory without rolling back.
+- **Cleanup Architecture** — Opening a notification dynamically marks it as read in the DB. Removing a Like seamlessly retracts the original notification.
+- **Frontend Hook** — `useNotifications.ts` manages the TanStack cache, optimistic rollbacks, unread counts, and deduplicated socket subscriptions.
+- **Visual Feedback** — Monospace alert styling with timestamp formatting, responsive routing, and high-contrast "seen" states.
 
 ---
 
@@ -375,9 +377,9 @@ npm run dev
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | Next.js 16, React 19, Tailwind CSS v4, Framer Motion, Lucide Icons, date-fns, Socket.IO Client |
+| Frontend | Next.js 16, React 19, TanStack Query (React Query), Tailwind CSS v4, Framer Motion, Socket.IO Client |
 | Backend | FastAPI, Motor (async MongoDB), Firebase Admin SDK, Pydantic, python-socketio, google-genai |
-| Database | MongoDB Atlas (collections: users, posts, post_likes, comments, comment_likes, peers, peer_requests, conversations, messages) |
+| Database | MongoDB Atlas (collections: users, posts, post_likes, comments, comment_likes, peers, peer_requests, conversations, messages, notifications) |
 | Auth | Firebase Authentication (Google, GitHub, Email/Password) |
 | Storage | Cloudinary (media and avatars) |
 | Encryption | Fernet (OAuth token encryption) |
