@@ -40,6 +40,7 @@ class ConnectionService:
         3. Outgoing Check: Prevents duplicate requests if one is already pending.
         4. Reciprocity: If receiver already sent a request, suggests 'accept' UI state.
         5. Creation: Generates a new PeerRequest record if no prior state exists.
+        6. Notification: Triggers a peer_request notification to the receiver.
         """
         # 1. Block self-connection
         if sender_id == receiver_id:
@@ -79,6 +80,16 @@ class ConnectionService:
         try:
             result = await peer_req_col.insert_one(new_request.dict())
             logger.info(f"Peer request generated: {sender_id} -> {receiver_id}")
+
+            # 6. Trigger notification for the receiver
+            from services.notification import NotificationService
+            await NotificationService.create_notification(
+                recipient_id=receiver_id,
+                sender_id=sender_id,
+                type="peer_request",
+                entity={"id": sender_id, "type": "user"}
+            )
+
             return True, "Connection request sent", ConnectionStatus.PENDING, str(result.inserted_id)
         except Exception as e:
             logger.error(f"Failed to generate peer request: {e}")
@@ -94,6 +105,7 @@ class ConnectionService:
         1. The connection record is created.
         2. The request record is deleted.
         3. Both users' peer counts are incremented atomically.
+        4. A peer_accept notification is triggered.
         """
         peer_req_col = await get_peer_requests_collection()
         peer_col = await get_peers_collection()
@@ -139,6 +151,16 @@ class ConnectionService:
                     )
                     
                     logger.info(f"Network link established: {users_sorted}")
+
+                    # 3. Trigger notification for the original sender
+                    from services.notification import NotificationService
+                    await NotificationService.create_notification(
+                        recipient_id=request.sender_id,
+                        sender_id=receiver_id,
+                        type="peer_accept",
+                        entity={"id": receiver_id, "type": "user"}
+                    )
+
                     return True, "Connection accepted"
                 except Exception as e:
                     logger.error(f"Peering transaction failed: {e}")

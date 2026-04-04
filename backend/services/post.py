@@ -288,6 +288,8 @@ class PostService:
     async def toggle_like(post_id: str, user_id: str) -> Dict[str, Any]:
         """
         Atomic toggle of a user's like status on a specific post.
+        
+        Triggers a notification to the post author when liked.
         """
         try:
             post_likes = await get_post_likes_collection()
@@ -322,6 +324,17 @@ class PostService:
                     return_document=True
                 )
                 updated_count = result.get("stats", {}).get("likes_count", 0) if result else 0
+
+                # 2. Trigger notification for the post author
+                if result:
+                    from services.notification import NotificationService
+                    await NotificationService.create_notification(
+                        recipient_id=result.get("author_id", ""),
+                        sender_id=user_id,
+                        type="like",
+                        entity={"id": post_id, "type": "post"}
+                    )
+
                 return {"liked": True, "likes_count": updated_count}
 
         except Exception:

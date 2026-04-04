@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageSquare,
@@ -13,6 +13,7 @@ import { useChatDrawer } from "@/hooks/useChatDrawer";
 import ConversationListItem from "./ConversationListItem";
 import ChatMessageBubble from "./ChatMessageBubble";
 import Toast from "./Toast";
+import SideDrawer from "./SideDrawer";
 
 interface ChatDrawerProps {
   isOpen: boolean;
@@ -66,18 +67,6 @@ export default function ChatDrawer({
     onBackToList,
   });
 
-  // ── Scroll Lock ───────────────────────────────────────────
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen]);
-
   // ── Messages scroll handler ────────────────────────────────
 
   const handleMessagesScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -89,32 +78,11 @@ export default function ChatDrawer({
     }
   };
 
-  // ── Render ────────────────────────────────────────────────
-
   return (
     <>
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-[3px] z-60"
-          />
-
-          {/* Drawer */}
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed top-0 right-0 h-full w-full sm:w-[620px] bg-background border-l border-border z-61 flex flex-col"
-          >
-            {/* Header */}
-            <div className="h-16 border-b border-border bg-surface/50 flex items-center justify-between px-4 shrink-0">
+    <SideDrawer isOpen={isOpen} onClose={onClose} widthClass="sm:w-[620px]">
+      {/* Header */}
+      <div className="h-16 border-b border-border bg-surface/50 flex items-center justify-between px-4 shrink-0">
               <div className="flex items-center gap-3">
                 {view === "chat" && (
                   <button
@@ -149,7 +117,7 @@ export default function ChatDrawer({
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 hover:bg-white/5 transition-colors"
+                className="p-1.5 hover:bg-white/5 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4 text-text-secondary" />
               </button>
@@ -183,7 +151,7 @@ export default function ChatDrawer({
                         </p>
                       </div>
                     ) : (
-                      <div className="divide-y divide-border">
+                      <div className="flex flex-col">
                         {conversations.map((conv) => (
                           <ConversationListItem
                             key={conv.id}
@@ -304,42 +272,45 @@ export default function ChatDrawer({
 
                     {/* Input */}
                     <div className="border-t border-border bg-surface/50 p-3 shrink-0">
-                      <div className="flex items-center gap-2">
-                        <input
-                          ref={inputRef}
-                          type="text"
-                          value={messageText}
-                          onChange={(e) => handleTyping(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              sendMessage();
-                            }
-                          }}
-                          placeholder="Type a message..."
-                          className="flex-1 bg-background border border-border px-4 py-2.5 text-xs font-mono text-white placeholder:text-text-secondary/50 focus:outline-none focus:border-accent/50 transition-colors"
-                        />
-                        <button
-                          onClick={sendMessage}
-                          disabled={!messageText.trim() || sending}
-                          className="p-2.5 bg-accent text-black hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          {sending ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Send className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
+                      {activeConversation?.is_active_peer === false ? (
+                        <div className="text-center py-2 px-4 text-[10px] font-mono tracking-widest text-accent uppercase">
+                          NO LONGER PEERS
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <input
+                            ref={inputRef}
+                            type="text"
+                            value={messageText}
+                            onChange={(e) => handleTyping(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                sendMessage();
+                              }
+                            }}
+                            placeholder="Type a message..."
+                            className="flex-1 bg-background border border-border px-4 py-2.5 text-xs font-mono text-white placeholder:text-text-secondary/50 focus:outline-none focus:border-accent/50 transition-colors"
+                          />
+                          <button
+                            onClick={sendMessage}
+                            disabled={!messageText.trim() || sending}
+                            className="p-2.5 bg-accent text-black hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            {sending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Send className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+    </SideDrawer>
 
     <Toast
       isVisible={!!toastMessage}

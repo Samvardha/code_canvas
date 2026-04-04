@@ -22,7 +22,11 @@ export default function ConversationListItem({
   return (
     <button
       onClick={() => openConversation(conv)}
-      className="w-full flex items-center gap-3 p-4 hover:bg-white/10 transition-colors text-left group cursor-pointer"
+      className={`w-full flex items-center gap-3 p-4 transition-all duration-200 text-left group cursor-pointer border-l-2 border-b border-border ${
+        hasUnread 
+          ? "bg-linear-to-l from-accent/5 to-accent/15 hover:bg-white/5 border-l-accent" 
+          : "bg-transparent hover:bg-white/10 border-l-transparent"
+      }`}
     >
       <Link
         href={`/profile/${conv.participant_profiles?.[otherUid]?.username || otherUid}`}
@@ -30,7 +34,9 @@ export default function ConversationListItem({
           e.stopPropagation();
           onClose();
         }}
-        className="w-10 h-10 shrink-0 border border-border bg-surface flex items-center justify-center overflow-hidden"
+        className={`w-10 h-10 shrink-0 border bg-surface flex items-center justify-center overflow-hidden transition-colors duration-300 ${
+          hasUnread ? "border-accent/40" : "border-border"
+        }`}
       >
         {conv.participant_profiles?.[otherUid]?.avatar_url ? (
           <img
