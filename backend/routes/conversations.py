@@ -4,10 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from utils.auth import get_current_uid
 from services.chat import ChatService
 
+# [ CONFIGURATION & UTILS ] ──────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/conversations", tags=["chat"])
 
+
+# [ CONVERSATION OPERATIONS ] ────────────────────────────────────────────────
 
 @router.post("/{targetUserId}")
 async def start_or_get_conversation(
@@ -15,8 +17,10 @@ async def start_or_get_conversation(
     current_uid: str = Depends(get_current_uid),
 ):
     """
-    Start a new conversation with a peer or retrieve existing one.
-    Returns 403 if the users are not peers.
+    Establish a secure transmission channel with a peer.
+    
+    - Authorization check: users must be established peers.
+    - Idempotent: returns existing conversation if already created.
     """
     success, message, conv = await ChatService.start_or_get_conversation(
         current_uid, targetUserId
@@ -31,7 +35,6 @@ async def start_or_get_conversation(
     return {"conversation": conv}
 
 
-
 @router.get("")
 async def get_conversations(
     cursor: Optional[str] = Query(None),
@@ -39,14 +42,18 @@ async def get_conversations(
     current_uid: str = Depends(get_current_uid),
 ):
     """
-    Paginated list of conversations for the current user,
-    sorted by most recently updated.
+    Retrieve a chronologically sorted list of transmission channels.
+    
+    - Sorted by most recently received/sent communication.
+    - Supports cursor-based pagination for large inboxes.
     """
     conversations, next_cursor = await ChatService.get_conversations(
         current_uid, cursor=cursor, limit=limit
     )
     return {"conversations": conversations, "next_cursor": next_cursor}
 
+
+# [ MESSAGE OPERATIONS ] ───────────────────────────────────────────────────────
 
 @router.get("/{conversationId}/messages")
 async def get_messages(
@@ -56,8 +63,10 @@ async def get_messages(
     current_uid: str = Depends(get_current_uid),
 ):
     """
-    Paginated messages for a conversation.
-    User must be a participant.
+    Fetch historical communication logs for a specific channel.
+    
+    - Validation: requesters must be participants of the conversation.
+    - Supports scrolling history via cursor-based pagination.
     """
     success, msg, messages, next_cursor = await ChatService.get_messages(
         current_uid, conversationId, cursor=cursor, limit=limit

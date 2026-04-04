@@ -5,16 +5,19 @@ from enum import Enum
 
 
 class MessageStatus(str, Enum):
+    """Delivery and read status of a chat message."""
     SENT = "sent"
     DELIVERED = "delivered"
     SEEN = "seen"
 
 
 class MessageContent(BaseModel):
+    """Structured content of a message (currently text-only)."""
     text: str
 
 
 class LastMessage(BaseModel):
+    """Summary of the most recent message in a conversation thread."""
     text: str
     sender_id: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -39,6 +42,7 @@ class Message(BaseModel):
 
 
 class ConversationResponse(BaseModel):
+    """View model for a conversation, including participant and unread data."""
     id: str
     participants: List[str]
     last_message: Optional[LastMessage] = None
@@ -48,11 +52,13 @@ class ConversationResponse(BaseModel):
 
 
 class ConversationListResponse(BaseModel):
+    """Paginated collection of conversations for the user's inbox."""
     conversations: List[ConversationResponse]
     next_cursor: Optional[str] = None
 
 
 class MessageResponse(BaseModel):
+    """View model for an individual message within a conversation."""
     id: str
     conversation_id: str
     sender_id: str
@@ -62,5 +68,6 @@ class MessageResponse(BaseModel):
 
 
 class MessageListResponse(BaseModel):
+    """Paginated collection of messages for a specific conversation."""
     messages: List[MessageResponse]
     next_cursor: Optional[str] = None

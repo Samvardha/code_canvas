@@ -1,19 +1,21 @@
 import logging
 import os
-
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 
+# [ ENCRYPTION CONFIG ] ────────────────────────────────────────────────────────
 load_dotenv()
-
 logger = logging.getLogger(__name__)
 
 _enc_key = os.getenv("ENCRYPTION_KEY")
 if not _enc_key:
-    raise ValueError("ENCRYPTION_KEY environment variable is not set!")
+    raise ValueError("FATAL ERROR: ENCRYPTION_KEY environment variable is not set!")
 
+# Initialize the primary cryptographic cipher suite
 cipher_suite = Fernet(_enc_key.encode())
 
+
+# [ TOKEN SECURITY ] ──────────────────────────────────────────────────────────
 
 def encrypt_token(plain_token: str) -> str:
     """Encrypts a plain text token."""

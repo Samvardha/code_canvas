@@ -4,7 +4,7 @@ import { MoveLeft, MoveRight } from "lucide-react";
 import { Button } from "@/components/Button";
 import { motion, Variants } from "framer-motion";
 
-export default function NotFound() {
+export default function NotFound({ profile = false }: { profile?: boolean } = {}) {
   const container: Variants = {
     hidden: { opacity: 0 },
     show: {
@@ -47,15 +47,17 @@ export default function NotFound() {
           variants={item}
           className="text-[4rem] sm:text-5xl lg:text-6xl font-black font-(family-name:--font-space-grotesk) uppercase tracking-tighter text-white mb-8 leading-none"
         >
-          NOT FOUND
+          {profile ? "PROFILE NOT FOUND" : "NOT FOUND"}
         </motion.h1>
 
         <motion.p
           variants={item}
           className="text-md sm:text-lg text-text-secondary max-w-2xl mx-auto leading-loose mb-12 tracking-wider"
         >
-          The requested page could not be located in our grid registry. It may
-          have been relocated or completely removed from the network.
+          {profile 
+            ? "The requested profile could not be located in our registry. The developer might not exist or has been removed from the network."
+            : "The requested page could not be located in our grid registry. It may have been relocated or completely removed from the network."
+          }
         </motion.p>
 
         <motion.div

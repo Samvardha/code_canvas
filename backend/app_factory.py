@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
+# [ ROUTE IMPORTS ] ────────────────────────────────────────────────────────────
 from routes.auth import router as auth_router
 from routes.users import router as users_router
 from routes.peers import router as peers_router
@@ -13,21 +14,38 @@ from routes.health import router as health_router
 from routes.ai import router as ai_router
 from routes.conversations import router as conversations_router
 
+# [ SOCKET HANDLER IMPORTS ] ───────────────────────────────────────────────────
 from socket_handlers.chat import register_chat_handlers
 from socket_handlers.core import register_core_handlers
 
 logger = logging.getLogger(__name__)
 
+
+# [ LIFECYCLE OPERATIONS ] ─────────────────────────────────────────────────────
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifecycle events for the FastAPI application."""
+    """
+    Manage the application lifecycle and side-car dependencies.
+    """
     from utils.database import ensure_indexes
+    # 1. Synchronize database states
     await ensure_indexes()
     logger.info("Database indexes ensured")
     yield
 
+
+# [ FASTAPI CONFIGURATION ] ────────────────────────────────────────────────────
+
 def create_fastapi_app(allowed_origins: list) -> FastAPI:
-    """Create and configure the FastAPI application."""
+    """
+    Provision and configure the primary FastAPI interface.
+    
+    Logic Flow:
+    1. Instantiation: Creates the core RESTful gateway.
+    2. Security: Injects CORS policies for allowed network nodes.
+    3. Routing: Mounts all module-specific API routers.
+    """
     app = FastAPI(
         title="Tech Connect API",
         version="1.0.0",
@@ -35,7 +53,7 @@ def create_fastapi_app(allowed_origins: list) -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS Middleware
+    # 2. CORS Middleware: Security parameters for cross-origin transmissions
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
@@ -50,7 +68,7 @@ def create_fastapi_app(allowed_origins: list) -> FastAPI:
         """Root endpoint."""
         return {"message": "Welcome to Tech Connect API", "status": "online"}
 
-    # Route Registration
+    # 3. Comprehensive Router Mounting
     app.include_router(auth_router)
     app.include_router(users_router)
     app.include_router(peers_router)
@@ -62,8 +80,13 @@ def create_fastapi_app(allowed_origins: list) -> FastAPI:
 
     return app
 
+
+# [ SOCKET.IO CONFIGURATION ] ──────────────────────────────────────────────────
+
 def create_socket_app(allowed_origins: list, fastapi_app: FastAPI):
-    """Create and configure the Socket.IO server and combined ASGI application."""
+    """
+    Provision the real-time Socket.IO server and combine with the FastAPI stack.
+    """
     sio = socketio.AsyncServer(
         async_mode="asgi",
         cors_allowed_origins=allowed_origins if allowed_origins != ["*"] else "*",
@@ -71,9 +94,10 @@ def create_socket_app(allowed_origins: list, fastapi_app: FastAPI):
         engineio_logger=False,
     )
 
-    # Socket.IO Handlers Registration
+    # 1. Event Handler Registration
     register_core_handlers(sio)
     register_chat_handlers(sio)
 
+    # 2. Combined Network Stack Generation
     combined_app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app)
     return combined_app, sio

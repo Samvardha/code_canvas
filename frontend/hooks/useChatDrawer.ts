@@ -16,6 +16,7 @@ export interface UseChatDrawerProps {
   openWithUserId?: string | null;
   onSelectUser: (uid: string) => void;
   onUnreadCountChange?: (count: number) => void;
+  onBackToList: () => void;
 }
 
 export function useChatDrawer({
@@ -23,6 +24,7 @@ export function useChatDrawer({
   openWithUserId,
   onSelectUser,
   onUnreadCountChange,
+  onBackToList,
 }: UseChatDrawerProps) {
   const { user, userProfile } = useAuth();
   const { socketRef, getSocket } = useSocket();
@@ -39,6 +41,7 @@ export function useChatDrawer({
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [nextMsgCursor, setNextMsgCursor] = useState<string | null>(null);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
@@ -51,6 +54,7 @@ export function useChatDrawer({
   const inputRef = useRef<HTMLInputElement>(null);
   const hasLoadedRef = useRef(false);
   const isOpenRef = useRef(isOpen);
+  const failedUidsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     isOpenRef.current = isOpen;
@@ -165,7 +169,7 @@ export function useChatDrawer({
   // Sync total unread count to parent
   useEffect(() => {
     if (onUnreadCountChange) {
-      const total = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+      const total = conversations.filter((c) => (c.unread_count || 0) > 0).length;
       onUnreadCountChange(total);
     }
   }, [conversations, onUnreadCountChange]);
@@ -276,10 +280,13 @@ export function useChatDrawer({
           }
           return [{ ...conversation, unread_count: 0 }, ...prev];
         });
-      } catch (err) {
+      } catch (err: any) {
         if (currentTargetUidRef.current === targetUid) {
           console.error("Failed to open conversation:", err);
+          failedUidsRef.current.add(targetUid);
           setView("list");
+          onBackToList();
+          setToastMessage(err.message || "UNABLE TO INITIATE TRANSMISSION");
         }
       } finally {
         if (currentTargetUidRef.current === targetUid) {
@@ -287,7 +294,7 @@ export function useChatDrawer({
         }
       }
     },
-    [user, getSocket, activeConversation, view, currentUid, conversations, getOtherUid]
+    [user, getSocket, activeConversation, view, currentUid, conversations, getOtherUid, onBackToList]
   );
 
   // ── Load older messages ────────────────────────────────────
@@ -456,7 +463,7 @@ export function useChatDrawer({
 
   useEffect(() => {
     if (isOpen) {
-      if (openWithUserId) {
+      if (openWithUserId && !failedUidsRef.current.has(openWithUserId)) {
         const currentOtherUid = activeConversation?.participants?.find(p => p !== currentUid);
         if (!loadingMessages && (!activeConversation || currentOtherUid !== openWithUserId || view !== "chat")) {
           openConversationByUid(openWithUserId);
@@ -485,6 +492,7 @@ export function useChatDrawer({
     isTyping, focusedMessageId, setFocusedMessageId,
     sendMessage, handleTyping,
     messagesEndRef, messagesContainerRef, inputRef,
-    getOtherUid, openConversation, scrollToBottom, currentUid
+    getOtherUid, openConversation, scrollToBottom, currentUid,
+    toastMessage, setToastMessage
   };
 }

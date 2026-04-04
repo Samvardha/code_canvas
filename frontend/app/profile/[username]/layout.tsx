@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter, usePathname } from "next/navigation";
+import NotFound from "@/app/not-found";
 import { useAuth } from "@/contexts/AuthContext";
 import { Pencil } from "lucide-react";
 import { StatCell } from "../components/StatCell";
@@ -91,6 +92,10 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
   const profileToDisplay = isCurrentUser ? userProfile?.profile : publicProfileData?.profile;
   const statsToDisplay = isCurrentUser ? userProfile?.stats : publicProfileData?.stats;
   const targetUserId = isCurrentUser ? userProfile?._id : publicProfileData?._id;
+
+  if (publicError === "User handle not found.") {
+    return <NotFound profile={true} />;
+  }
 
   if (!profileToDisplay && !publicError) return null;
 
