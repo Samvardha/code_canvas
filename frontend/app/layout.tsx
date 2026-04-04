@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/contexts/AuthContext";
+import QueryProvider from "@/providers/QueryProvider";
 import { NavbarWrapper } from "@/components/NavbarWrapper";
 import "./globals.css";
 
@@ -36,7 +37,9 @@ export default function RootLayout({
         className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased bg-background text-foreground font-sans min-h-screen selection:bg-accent selection:text-black`}
       >
         <AuthProvider>
-          <NavbarWrapper>{children}</NavbarWrapper>
+          <QueryProvider>
+            <NavbarWrapper>{children}</NavbarWrapper>
+          </QueryProvider>
         </AuthProvider>
       </body>
     </html>

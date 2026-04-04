@@ -18,7 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface CommentSectionProps {
   postId: string;
-  token?: string | null;
+  getToken?: () => Promise<string | null>;
   currentUserId?: string | null;
   isExpanded: boolean;
   onCommentsCountChange?: (delta: number) => void;
@@ -27,7 +27,7 @@ interface CommentSectionProps {
 
 export function CommentSection({ 
   postId, 
-  token, 
+  getToken, 
   currentUserId,
   isExpanded,
   onCommentsCountChange,
@@ -42,7 +42,8 @@ export function CommentSection({
   const fetchComments = useCallback(async () => {
     try {
       setIsSyncing(true);
-      const data = await getComments(postId, token || undefined);
+      const idToken = getToken ? await getToken() : null;
+      const data = await getComments(postId, idToken || undefined);
       setComments(data);
     } catch (err) {
       console.error("Failed to fetch comments:", err);
@@ -51,7 +52,8 @@ export function CommentSection({
       setLoading(false);
       setIsSyncing(false);
     }
-  }, [postId, token]);
+  }, [postId, getToken]);
+
 
   useEffect(() => {
     if (isExpanded) {
@@ -60,9 +62,12 @@ export function CommentSection({
   }, [fetchComments, isExpanded]);
 
   const handleCreateComment = async (text: string) => {
-    if (!token || !user || !userProfile?.profile) return;
+    if (!getToken || !user || !userProfile?.profile) return;
     try {
-      const serverComment = await addComment(postId, text, token);
+      const idToken = await getToken();
+      if (!idToken) throw new Error("AUTH_REQUIRED");
+      const serverComment = await addComment(postId, text, idToken);
+
       
       // Inject local profile info for immediate display
       const newComment: Comment = {
@@ -126,7 +131,7 @@ export function CommentSection({
                   comment={comment}
                   postId={postId}
                   currentUserId={currentUserId}
-                  token={token}
+                  getToken={getToken}
                   onCommentUpdate={handleUpdate}
                   onCommentDelete={handleDelete}
                 />

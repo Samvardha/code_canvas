@@ -1,6 +1,5 @@
 "use client";
 
-import React, { useEffect } from "react";
 import { useProfile } from "./layout";
 import { GitHubSection } from "../components/GitHubSection";
 import { useProfileGithub } from "../../../hooks/useProfileGithub";
@@ -16,7 +15,6 @@ export default function ProfileDetailsPage() {
     githubData: gh,
     ghLoading,
     linkError,
-    loadGitHub,
     handleGitHubLink,
     hasGitHub,
     connected,
@@ -25,7 +23,6 @@ export default function ProfileDetailsPage() {
     loadMore,
     hasMore,
     loadingMore,
-    hasFetchedGhRef
   } = useProfileGithub({
     user,
     backendUid,
@@ -34,12 +31,6 @@ export default function ProfileDetailsPage() {
     username: username as string,
     publicGithubLinked: profileData?.providers?.github?.linked,
   });
-
-  useEffect(() => {
-    if (user && profileComplete && !hasFetchedGhRef.current) {
-      loadGitHub();
-    }
-  }, [user, profileComplete, loadGitHub, hasFetchedGhRef]);
 
   if (profileError) {
     return (
@@ -60,7 +51,7 @@ export default function ProfileDetailsPage() {
       handleGitHubLink={handleGitHubLink}
       linkError={linkError}
       isCurrentUser={isCurrentUser}
-      loadMore={loadMore}
+      loadMore={async () => { await loadMore(); }}
       hasMore={hasMore}
       loadingMore={loadingMore}
     />

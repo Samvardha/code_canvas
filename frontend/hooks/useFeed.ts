@@ -1,85 +1,106 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { Post, FeedResponse } from "@/lib/api/posts";
+import { useInfiniteQuery, useQueryClient, InfiniteData } from "@tanstack/react-query";
 
-export function useFeed(fetchFn: (token: string, offset: number, limit: number) => Promise<FeedResponse>) {
+export function useFeed(
+  queryKey: string,
+  fetchFn: (token: string, offset: number, limit: number) => Promise<FeedResponse>
+) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const fetchedRef = useRef<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [offset, setOffset] = useState(0);
-  const [token, setToken] = useState<string | null>(null);
+  const LIMIT = 10;
+
+  const fullQueryKey = useMemo(() => [queryKey, user?.uid], [queryKey, user?.uid]);
+
+  const getToken = useCallback(async () => {
+    if (!user) return null;
+    try {
+      return await user.getIdToken();
+    } catch (err) {
+      console.error("Failed to get fresh token:", err);
+      return null;
+    }
+  }, [user]);
+
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    error,
+  } = useInfiniteQuery({
+    queryKey: fullQueryKey,
+    queryFn: async ({ pageParam = 0 }) => {
+      const idToken = await getToken();
+      if (!idToken) throw new Error("AUTH_REQUIRED");
+      return fetchFn(idToken, pageParam, LIMIT);
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage.has_more) return undefined;
+      return allPages.reduce((acc, page) => acc + page.posts.length, 0);
+    },
+    enabled: !!user && !authLoading,
+    initialPageParam: 0,
+  });
+
+  const posts = useMemo(() => {
+    return data?.pages.flatMap((page) => page.posts) ?? [];
+  }, [data]);
+
+  const setPosts = (updater: Post[] | ((prev: Post[]) => Post[])) => {
+    queryClient.setQueryData<InfiniteData<FeedResponse>>(fullQueryKey, (oldData) => {
+      if (!oldData) return oldData;
+      
+      const currentPosts = oldData.pages.flatMap(p => p.posts);
+      const newPosts = typeof updater === "function" ? updater(currentPosts) : updater;
+
+      return {
+        ...oldData,
+        pages: [{
+          ...oldData.pages[0],
+          posts: newPosts,
+          has_more: oldData.pages[oldData.pages.length - 1].has_more
+        }]
+      };
+    });
+  };
+
   const [errorToast, setErrorToast] = useState<{ isVisible: boolean; message: string }>({
     isVisible: false,
     message: "",
   });
 
-  const LIMIT = 10;
-
-  const fetchPosts = useCallback(async (userToken: string, currentOffset: number = 0, isInitial: boolean = true) => {
-    try {
-      if (isInitial) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
-      
-      const data = await fetchFn(userToken, currentOffset, LIMIT);
-      
-      if (isInitial) {
-        setPosts(data.posts);
-      } else {
-        setPosts(prev => [...prev, ...data.posts]);
-      }
-      
-      setHasMore(data.has_more);
-      setOffset(currentOffset + data.posts.length);
-    } catch (err: any) {
-      console.error("Failed to fetch signals:", err);
+  useEffect(() => {
+    if (error) {
       setErrorToast({
         isVisible: true,
-        message: err.message || "FAILED_TO_INTERCEPT_SIGNALS",
+        message: (error as any).message || "FAILED_TO_INTERCEPT_SIGNALS",
       });
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
     }
-  }, [fetchFn]);
-
-  const loadMore = useCallback(() => {
-    if (token && hasMore && !loadingMore && !loading) {
-      fetchPosts(token, offset, false);
-    }
-  }, [token, hasMore, loadingMore, loading, offset, fetchPosts]);
+  }, [error]);
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
-    } else if (user && fetchedRef.current !== user.uid) {
-      fetchedRef.current = user.uid;
-      user.getIdToken().then((t) => {
-        setToken(t);
-        fetchPosts(t, 0, true);
-      });
     }
-  }, [user, authLoading, router, fetchPosts]);
+  }, [user, authLoading, router]);
 
   return {
     posts,
     setPosts,
-    loading,
-    loadingMore,
-    hasMore,
-    token,
+    loading: isLoading,
+    loadingMore: isFetchingNextPage,
+    hasMore: hasNextPage,
+    getToken,
     authLoading,
     user,
     errorToast,
     setErrorToast,
-    loadMore,
+    loadMore: fetchNextPage,
   };
 }

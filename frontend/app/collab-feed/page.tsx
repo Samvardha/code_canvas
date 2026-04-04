@@ -22,13 +22,13 @@ export default function CollabFeedPage() {
     loading, 
     loadingMore,
     hasMore,
-    token, 
+    getToken,
     authLoading, 
     user, 
     errorToast, 
     setErrorToast,
     loadMore
-  } = useFeed(getCollabFeed);
+  } = useFeed("collabFeed", getCollabFeed);
 
   const observerRef = useIntersectionObserver(loadMore, [hasMore, loadingMore, loading]);
 
@@ -69,7 +69,7 @@ export default function CollabFeedPage() {
                   postId={post._id}
                   authorId={post.author_id}
                   currentUserId={user?.uid}
-                  token={token}
+                  getToken={getToken}
                   onDelete={(id) => setPosts(posts.filter(p => p._id !== id))}
                   username={post.author?.name || "Anonymous"}
                   userHandle={post.author?.username || "unknown"}

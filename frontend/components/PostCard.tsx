@@ -29,7 +29,7 @@ interface PostCardProps {
   postId: string;
   authorId: string;
   currentUserId?: string | null;
-  token?: string | null;
+  getToken?: () => Promise<string | null>;
   onDelete?: (postId: string) => void;
   username: string;
   userHandle: string;
@@ -52,7 +52,7 @@ export function PostCard({
   postId,
   authorId,
   currentUserId,
-  token,
+  getToken,
   onDelete,
   username,
   userHandle,
@@ -123,11 +123,13 @@ export function PostCard({
   }, [comments]);
 
   const confirmDelete = async () => {
-    if (!token || isDeleting) return;
+    if (!getToken || isDeleting) return;
 
     try {
       setIsDeleting(true);
-      await deletePost(postId, token);
+      const idToken = await getToken();
+      if (!idToken) throw new Error("AUTH_REQUIRED");
+      await deletePost(postId, idToken);
       if (onDelete) onDelete(postId);
       setIsMenuOpen(false);
     } catch (err) {
@@ -175,7 +177,7 @@ export function PostCard({
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!token || isLiking) return;
+    if (!getToken || isLiking) return;
 
     // Optimistic UI update
     const previousLikes = currentLikes;
@@ -187,7 +189,9 @@ export function PostCard({
     setIsLiking(true);
 
     try {
-      const result = await toggleLike(postId, token);
+      const idToken = await getToken();
+      if (!idToken) throw new Error("AUTH_REQUIRED");
+      const result = await toggleLike(postId, idToken);
       if (result.success) {
         setIsLikedInternal(result.liked);
         setCurrentLikes(result.likes_count);
@@ -589,7 +593,7 @@ export function PostCard({
 
         <CommentSection 
           postId={postId}
-          token={token}
+          getToken={getToken}
           currentUserId={currentUserId}
           isExpanded={isCommentsExpanded}
           onExpand={() => setIsCommentsExpanded(true)}

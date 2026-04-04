@@ -6,6 +6,7 @@ from utils.database import get_posts_collection, get_users_collection, get_post_
 from utils.cloudinary_utils import delete_media
 from models.post import PostCreateRequest, Category
 from utils.serialization import prepare_for_mongo
+from services.notification import NotificationService
 
 # [ CONFIGURATION ] ────────────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
@@ -260,16 +261,21 @@ class PostService:
                         "avatar_url": author.get("profile", {}).get("avatar_url"),
                         "bio": author.get("profile", {}).get("bio")
                     }
-                
-                # Check user context (likes)
                 post["is_liked"] = False
-                if current_user_id:
-                    like = await post_likes.find_one({
-                        "post_id": ObjectId(post["_id"]),
-                        "user_id": current_user_id
-                    })
-                    post["is_liked"] = bool(like)
                 posts.append(post)
+
+            # 3. Batch Identification of Liked Content
+            if current_user_id and posts:
+                post_ids = [ObjectId(p["_id"]) for p in posts]
+                liked_docs = await post_likes.find({
+                    "user_id": current_user_id,
+                    "post_id": {"$in": post_ids}
+                }).to_list(length=None)
+                liked_set = {str(d["post_id"]) for d in liked_docs}
+                
+                for post in posts:
+                    if post["_id"] in liked_set:
+                        post["is_liked"] = True
                 
             return {
                 "posts": posts,
@@ -327,7 +333,6 @@ class PostService:
 
                 # 2. Trigger notification for the post author
                 if result:
-                    from services.notification import NotificationService
                     await NotificationService.create_notification(
                         recipient_id=result.get("author_id", ""),
                         sender_id=user_id,

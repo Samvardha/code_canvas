@@ -24,13 +24,13 @@ export default function FeedPage() {
     loading, 
     loadingMore,
     hasMore,
-    token, 
+    getToken, 
     authLoading, 
     user, 
     errorToast, 
     setErrorToast,
     loadMore
-  } = useFeed(getExploreFeed);
+  } = useFeed("exploreFeed", getExploreFeed);
 
   const observerRef = useIntersectionObserver(loadMore, [hasMore, loadingMore, loading]);
 
@@ -95,7 +95,7 @@ export default function FeedPage() {
                   postId={post._id}
                   authorId={post.author_id}
                   currentUserId={user?.uid}
-                  token={token}
+                  getToken={getToken}
                   onDelete={(id) => setPosts(posts.filter(p => p._id !== id))}
                   username={post.author?.name || "Anonymous"}
                   userHandle={post.author?.username || "unknown"}
