@@ -222,3 +222,35 @@ class NotificationService:
         })
 
         return count
+
+    # [ CLEANUP OPERATIONS ] ───────────────────────────────────────────────────
+
+    @staticmethod
+    async def delete_notification(sender_id: str, recipient_id: str, notif_type: str, entity_id: str) -> None:
+        """
+        Retract a specific notification (e.g. when un-liking a post).
+        """
+        try:
+            notifications_col = await get_notifications_collection()
+            await notifications_col.delete_many({
+                "sender_id": sender_id,
+                "recipient_id": recipient_id,
+                "type": notif_type,
+                "entity.id": str(entity_id)
+            })
+        except Exception:
+            logger.error(f"Failed to retract notification: {notif_type}", exc_info=True)
+
+    @staticmethod
+    async def delete_all_for_entity(entity_id: str, entity_type: str) -> None:
+        """
+        Cascade purge all notifications tied to a destroyed entity (e.g., deleted post).
+        """
+        try:
+            notifications_col = await get_notifications_collection()
+            await notifications_col.delete_many({
+                "entity.id": str(entity_id),
+                "entity.type": entity_type
+            })
+        except Exception:
+            logger.error(f"Failed to purge notifications for entity: {entity_id}", exc_info=True)

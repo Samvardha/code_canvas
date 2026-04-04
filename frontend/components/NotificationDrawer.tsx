@@ -28,9 +28,19 @@ const NOTIFICATION_CONFIG: Record<
     label: "liked your post",
     color: "text-red-400",
   },
+  comment_like: {
+    icon: Heart,
+    label: "liked your comment",
+    color: "text-red-400",
+  },
   comment: {
     icon: MessageCircle,
     label: "commented on your post",
+    color: "text-blue-400",
+  },
+  comment_reply: {
+    icon: MessageCircle,
+    label: "replied to your comment",
     color: "text-blue-400",
   },
   peer_request: {
@@ -58,7 +68,9 @@ function getNavigationPath(notification: Notification): string | null {
 
   switch (type) {
     case "like":
+    case "comment_like":
     case "comment":
+    case "comment_reply":
       if (entity.type === "post") return `/posts/${entity.id}`;
       return null;
     case "peer_request":
@@ -138,18 +150,11 @@ export default function NotificationDrawer({
     unreadCount,
     loading,
     loadingMore,
-    nextCursor,
+    hasMore,
     fetchNotifications,
     markAsRead,
     markAllRead,
   } = useNotifications();
-
-  // Fetch on first open
-  useEffect(() => {
-    if (isOpen) {
-      fetchNotifications(true);
-    }
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNavigate = (path: string, notification: Notification) => {
     if (!notification.is_read) {
@@ -163,7 +168,7 @@ export default function NotificationDrawer({
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     if (
       scrollHeight - scrollTop <= clientHeight + 80 &&
-      nextCursor &&
+      hasMore &&
       !loadingMore
     ) {
       fetchNotifications(false);
