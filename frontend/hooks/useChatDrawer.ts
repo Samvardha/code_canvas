@@ -169,7 +169,7 @@ export function useChatDrawer({
   // Sync total unread count to parent
   useEffect(() => {
     if (onUnreadCountChange) {
-      const total = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+      const total = conversations.filter((c) => (c.unread_count || 0) > 0).length;
       onUnreadCountChange(total);
     }
   }, [conversations, onUnreadCountChange]);
