@@ -7,7 +7,9 @@ A full-stack developer collaboration platform built with **Next.js 16** and **Fa
 ## 🚀 Features
 
 - **Authentication** — Firebase Auth (Google, GitHub, Email/Password) with secure token verification via the Admin SDK
-- **Real-Time Chat** — Socket.IO powered direct messaging, routing integration, and a dedicated `ChatDrawer` with optimistic UI
+- **Real-Time Chat** — Socket.IO powered direct messaging with real-time **Seen Status** tracking, typing indicators, and historical read-only modes
+- **Real-Time Notifications** — Instant bell-icon alerts for Likes, Comments, and Peer actions, powered by dedicated WebSocket signals
+- **Deep-Linked Routing** — Smart navigation from notifications to specific posts (`/posts/[id]`) or profiles (`/profile/@username`)
 - **User Profiles** — Onboarding flow, refined avatar uploads (preview & manual confirm via Cloudinary), skills, bio, and progress tracking
 - **GitHub Integration** — OAuth linking, pinned repos, language stats, active feed, AES-encrypted token storage with system fallback
 - **User Search** — Debounced, regex-based paginated search with infinite scroll and keyboard shortcut (⌘/Ctrl+K)
@@ -16,8 +18,8 @@ A full-stack developer collaboration platform built with **Next.js 16** and **Fa
 - **Post Interactions** — Like/unlike posts with real-time count updates and optimistic UI rendering
 - **Comments & Replies** — Integrated node-based UI with clear thread visuals, nesting, auto-capitalization, and responsive side actions
 - **Comment Interactions** — Like/unlike comments, delete comments (cascade deletes replies), proper authorization
-- **Peer Connections** — Send/accept connection requests and manage peer relationships
-- **Dark Brutalist UI** — Custom design system with distinct `Toast` / `Popup` components, monospace typography, and Framer Motion animations
+- **Peer Connections** — Real-time peer requests, accept/reject lifecycle, and mutual relationship management
+- **Dark Brutalist UI** — Custom design system with distinct `SideDrawer` architecture, monospace typography, and Framer Motion animations
 
 ---
 
@@ -41,6 +43,7 @@ code_canvas/
 │   │   ├── posts.py            # Create, read, update, delete, like posts
 │   │   ├── comments.py         # Comments, replies, likes endpoints
 │   │   ├── peers.py            # Send/accept connection requests
+│   │   ├── notifications.py    # Notification retrieval and read-state management
 │   │   ├── health.py           # Health check with DB ping
 │   │   └── ai.py               # AI signal generation endpoint
 │   ├── services/
@@ -49,6 +52,7 @@ code_canvas/
 │   │   ├── post.py             # Post CRUD, like management, count tracking
 │   │   ├── comment.py          # Comment/reply CRUD, tree building, likes
 │   │   ├── peers.py            # Connection request & peer management
+│   │   ├── notification.py     # Real-time event broadcasting and persistent alerts
 │   │   ├── chat.py             # Chat message persistence and retrieval
 │   │   └── ai.py               # AI signal generation logic
 │   ├── socket_handlers/        # Real-time WebSocket event listeners
@@ -80,9 +84,11 @@ code_canvas/
     │   │   └── [username]/page.tsx  # Public profile view
     │   └── globals.css         # Global styles
     ├── components/             # Reusable UI components
-    │   ├── Navbar.tsx & NavbarWrapper.tsx  # Navigation with search
-    │   ├── ChatDrawer.tsx      # Real-time direct messaging drawer
-    │   ├── ChatMessageBubble.tsx # Message bubble for chat
+    │   ├── Navbar.tsx & NavbarWrapper.tsx  # Navigation with real-time Badge system
+    │   ├── ChatDrawer.tsx      # SideDrawer for real-time messaging & status tracking
+    │   ├── NotificationDrawer.tsx # SideDrawer for global activity and deep-linking
+    │   ├── ChatMessageBubble.tsx # Message bubble with delivery/seen status
+    │   ├── SideDrawer.tsx       # Abstracted drawer component with focus trapping
     │   ├── PostCard.tsx        # Feed post with interactions
     │   ├── CommentForm.tsx     # Comment & reply input with auto-capitalization
     │   ├── CommentItem.tsx     # Node-based comment with nested replies
@@ -112,6 +118,7 @@ code_canvas/
     │   │   ├── posts.ts        # Post create, read, like endpoints
     │   │   ├── comments.ts     # Comment, reply, like endpoints
     │   │   ├── peers.ts        # Connection request endpoints
+    │   │   ├── notifications.ts # Activity stream management
     │   │   └── ...
     │   └── utils/
     │       └── validation.ts   # Input validation & sanitization (comments, usernames, etc.)
@@ -257,12 +264,37 @@ npm run dev
 
 ---
 
-## 🤝 Peer Connections
+## 🔔 Real-Time Notifications
 
-- **Send Requests** — Users can request peer connections with other users
-- **Request Management** — Accept, reject, or cancel connection requests
-- **Peer List** — View all established connections on profile
-- **Identity Linking** — Peers collection manages mutual relationships with indexed lookups
+### Activity Stream
+- **Instant Alerts** — Powered by `socket.io`, notifications appear instantly in the `NotificationDrawer`.
+- **Engagement Triggers** — Users are notified for:
+  - **Likes** on their posts
+  - **Comments** or **Replies** on their content
+  - **Peer Requests** and **Peer Connection** acceptances
+- **Persistent Storage** — Notifications are indexed in MongoDB for historical retrieval on next login.
+- **Deep Linking** — Intelligent routing handles:
+  - Post interactions → Directed to `/posts/[id]`
+  - User interactions → Directed to `/profile/@username`
+
+### Implementation Details
+- **Cleanup Architecture** — Opening a notification automatically marks it as read in the DB, reducing unnecessary bandwidth.
+- **Frontend Hook** — `useNotifications.ts` manages the local state, unread counts, and socket subscriptions.
+- **Visual Feedback** — Monospace alert styling with timestamp formatting and high-contrast "seen" states.
+
+---
+
+## 💬 Real-Time Chat & Seen Tracking
+
+### Messaging Core
+- **Optimistic UI** — Messages appear instantly on the sender's side with a "Sent" checkmark while persistence is finalized.
+- **Seen Status (Eyewitness)** — Double checkmarks transition to an `accent` color the moment the recipient views the transmission.
+- **Peer-Restricted** — Encrypted transmission channels are only allowed between established peers.
+- **Read-Only Mode** — If a peer relationship is terminated, the conversation history remains accessible in read-only mode for historical context.
+
+### Network Performance
+- **Event Throttling** — Messaging, typing, and read-receipt signals are throttled (0.1s to 1.5s intervals) to prevent DB hammering and signal storms.
+- **Atomic Read Cursors** — Batch-updating unread messages ensures the database remains performant even in high-volume channels.
 
 ---
 
@@ -276,6 +308,13 @@ npm run dev
 - The `.env.example` files are safe templates for other developers
 
 ---
+
+## 🤝 Peer Connections
+
+- **Send Requests** — Users can request peer connections with other users
+- **Request Management** — Accept, reject, or cancel connection requests
+- **Peer List** — View all established connections on profile
+- **Identity Linking** — Peers collection manages mutual relationships with indexed lookups
 
 ---
 
@@ -316,12 +355,16 @@ npm run dev
 - `GET /peers/connections` — List user's peers
 - `GET /peers/requests` — List pending requests
 
-### Real-Time Chat (Socket.IO)
-- `emit("send_message", { conversationId, text })` — Send a direct message
-- `emit("typing", { conversationId, isTyping })` — Broadcast typing indicator
-- `emit("mark_as_read", { conversationId })` — Mark messages as read
+### Real-Time Communications (Socket.IO)
 - `on("new_message")` — Receive incoming messages in real-time
 - `on("user_typing")` — Receive typing status updates
+- `on("messages_seen")` — Informs the sender that their messages were viewed
+- `on("new_notification")` — Instant activity alerts (likes, comments, peers)
+
+### Client Transmissions (Socket.IO)
+- `emit("send_message", { conversationId, text })` — Send a direct message
+- `emit("typing", { conversationId, isTyping })` — Broadcast ephemeral presence
+- `emit("mark_as_read", { conversationId })` — Clear unread count and trigger 'Seen' broadcast
 
 ### Health
 - `GET /health` — API health check with DB ping

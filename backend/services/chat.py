@@ -39,19 +39,19 @@ class ChatService:
         if current_uid == target_uid:
             return False, "Cannot start a conversation with yourself", None
 
-        # 1. Verify peer connectivity
-        if not await ChatService._are_peers(current_uid, target_uid):
-            return False, "You can only chat with your peers", None
-
         conv_col = await get_conversations_collection()
         participants = sorted([current_uid, target_uid])
 
-        # 2. Sequential Lookup & Provisioning
+        # 1. Lookup existing channel (allow read-only for disconnected peers)
         existing = await conv_col.find_one({"participants": participants})
         if existing:
             existing["id"] = str(existing.pop("_id"))
-            await ChatService._enrich_conversation_profiles([existing])
+            await ChatService._enrich_conversation_profiles([existing], current_uid)
             return True, "Conversation found", existing
+
+        # 2. Block Provisioning of new channels if not active peers
+        if not await ChatService._are_peers(current_uid, target_uid):
+            return False, "You can only start new chats with active peers", None
 
         now = datetime.utcnow()
         new_conv = Conversation(
@@ -73,7 +73,7 @@ class ChatService:
             doc = existing
 
         # 3. Final Metadata Injection
-        await ChatService._enrich_conversation_profiles([doc])
+        await ChatService._enrich_conversation_profiles([doc], current_uid)
         logger.info(f"Transmission channel established between {current_uid} and {target_uid}")
         return True, "Success", doc
 
@@ -123,7 +123,7 @@ class ChatService:
             last = docs[-1]
             next_cursor = f"{last['updated_at'].isoformat()}|{str(last['_id'])}"
 
-        await ChatService._enrich_conversation_profiles(docs)
+        await ChatService._enrich_conversation_profiles(docs, user_id)
 
         results = []
         for d in docs:
@@ -324,8 +324,8 @@ class ChatService:
 
 
     @staticmethod
-    async def _enrich_conversation_profiles(conversations: List[Dict[str, Any]]) -> None:
-        """ High-performance batch injection of participant profile metadata. """
+    async def _enrich_conversation_profiles(conversations: List[Dict[str, Any]], user_id: str) -> None:
+        """ High-performance batch injection of participant profile metadata and peer status. """
         all_participant_ids = set()
         for d in conversations:
             all_participant_ids.update(d.get("participants", []))
@@ -335,8 +335,28 @@ class ChatService:
 
         profiles = await UserService.fetch_chat_profiles(list(all_participant_ids))
         profile_map = {p["user_id"]: p for p in profiles}
+        
+        peers_col = await get_peers_collection()
+        
+        target_uids = list(all_participant_ids - {user_id})
+        my_peers_set = set()
+        
+        if target_uids:
+            my_peers_docs = await peers_col.find({
+                "$and": [
+                    {"users": user_id},
+                    {"users": {"$in": target_uids}}
+                ]
+            }).to_list(length=None)
+            
+            for doc in my_peers_docs:
+                for u in doc.get("users", []):
+                    if u != user_id:
+                        my_peers_set.add(u)
 
         for d in conversations:
             d["participant_profiles"] = {
                 uid: profile_map.get(uid, {}) for uid in d.get("participants", [])
             }
+            other_uid = next((u for u in d.get("participants", []) if u != user_id), None)
+            d["is_active_peer"] = (other_uid in my_peers_set) if other_uid else False

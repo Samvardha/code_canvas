@@ -60,6 +60,11 @@ async def get_messages_collection():
     return db.get_collection("messages")
 
 
+async def get_notifications_collection():
+    """Access point for User Notification Records."""
+    return db.get_collection("notifications")
+
+
 # [ INDEXING CORE ] ───────────────────────────────────────────────────────────
 
 async def ensure_indexes():
@@ -126,6 +131,11 @@ async def ensure_indexes():
 
         messages = await get_messages_collection()
         await messages.create_index([("conversation_id", 1), ("created_at", -1), ("_id", -1)], background=True)
+
+        # 6. Notification Indexes
+        notifications = await get_notifications_collection()
+        await notifications.create_index([("recipient_id", 1), ("created_at", -1)], background=True)
+        await notifications.create_index([("recipient_id", 1), ("is_read", 1)], background=True)
 
         print("Successfully ensured database indexes.")
     except Exception as e:

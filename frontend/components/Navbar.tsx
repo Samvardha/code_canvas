@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-
 import { useAuth } from "@/contexts/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useNotifications } from "@/hooks/useNotifications";
 import {
   Search,
   ChevronDown,
@@ -18,12 +18,15 @@ import {
   Loader2,
   Menu,
   X,
+  Bell,
+  MessageSquare,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { searchUsers, User as SearchUser } from "@/lib/api/users";
 import { MenuDropdown } from "./MenuDropdown";
 import ChatDrawer from "./ChatDrawer";
-import ChatBadge from "./ChatBadge";
+import BadgeIcon from "./BadgeIcon";
+import NotificationPanel from "./NotificationDrawer";
 
 export function Navbar() {
   const { user, userProfile, logout } = useAuth();
@@ -44,6 +47,8 @@ export function Navbar() {
   const isChatOpen = searchParams.get("chat") === "true";
   const openChatWithUserId = searchParams.get("uid");
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const { unreadCount: notifUnreadCount } = useNotifications();
 
   const desktopDropdownRef = useRef<HTMLDivElement>(null);
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
@@ -240,15 +245,29 @@ export function Navbar() {
             ))}
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-6 flex-1 justify-end">
-            <ChatBadge
-              onClick={() => setIsChatOpen(true)}
+          <div className="flex items-center gap-2.5 sm:gap-6 flex-1 justify-end">
+            <BadgeIcon
+              icon={Bell}
+              onClick={() => {
+                setIsNotificationsOpen(true);
+                setIsChatOpen(false);
+              }}
+              unreadCount={notifUnreadCount}
+              title="Notifications"
+            />
+            <BadgeIcon
+              icon={MessageSquare}
+              onClick={() => {
+                setIsChatOpen(true);
+                setIsNotificationsOpen(false);
+              }}
               unreadCount={chatUnreadCount}
+              title="Messages"
             />
 
             {/* Desktop Search */}
             <div
-              className="relative w-64 lg:w-68 hidden md:block group transition-all duration-300"
+              className="relative w-64 lg:w-68 hidden md:block group transition-all duration-300 ml-2"
               ref={searchContainerRef}
             >
               <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
@@ -363,7 +382,7 @@ export function Navbar() {
             {/* Mobile Search Icon - shown on small screens */}
             <button
               onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="md:hidden p-2 hover:bg-white/5 transition-colors"
+              className="md:hidden p-1"
             >
               <Search className="w-5 h-5 text-white" />
             </button>
@@ -371,7 +390,7 @@ export function Navbar() {
             {/* Mobile Menu Icon - shown on small screens */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 hover:bg-white/5 transition-colors"
+              className="lg:hidden p-1"
             >
               {isMobileMenuOpen ? (
                 <X className="w-5 h-5 text-white" />
@@ -452,9 +471,9 @@ export function Navbar() {
             <div className="relative lg:hidden" ref={mobileDropdownRef}>
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className={`flex items-center transition-all cursor-pointer ${isDropdownOpen ? "bg-white/5" : "hover:bg-white/5"}`}
+                className={`flex items-center transition-all cursor-pointer ${isDropdownOpen ? "bg-white/5" : ""}`}
               >
-                <div className="w-8 h-8 border border-border bg-background overflow-hidden shrink-0 transition-colors">
+                <div className="w-7 h-7 border border-border bg-background overflow-hidden shrink-0 transition-colors">
                   {profile?.avatar_url ? (
                     <img
                       src={profile.avatar_url}
@@ -649,7 +668,7 @@ export function Navbar() {
                     ${
                       pathname === item.href
                         ? "text-accent bg-accent/10 border border-accent/50"
-                        : "text-text-secondary hover:text-white hover:bg-white/5"
+                        : "text-text-secondary"
                     }
                   `}
                   >
@@ -681,6 +700,12 @@ export function Navbar() {
           router.push(`${pathname}?${params.toString()}`, { scroll: false });
         }}
         onUnreadCountChange={setChatUnreadCount}
+      />
+
+      {/* Notification Panel */}
+      <NotificationPanel
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
       />
     </>
   );

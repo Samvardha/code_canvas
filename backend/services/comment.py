@@ -23,6 +23,8 @@ class CommentService:
     async def add_comment(post_id: str, author_id: str, data: CommentCreateRequest, parent_comment_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Append a new comment or nested reply to a post thread.
+        
+        Triggers a notification to the post author on creation.
         """
         try:
             comments = await get_comments_collection()
@@ -53,6 +55,17 @@ class CommentService:
                 {"_id": ObjectId(post_id)},
                 {"$inc": {"stats.comments_count": 1}}
             )
+
+            # 5. Trigger notification for the post author
+            post = await posts.find_one({"_id": ObjectId(post_id)}, {"author_id": 1})
+            if post:
+                from services.notification import NotificationService
+                await NotificationService.create_notification(
+                    recipient_id=post.get("author_id", ""),
+                    sender_id=author_id,
+                    type="comment",
+                    entity={"id": post_id, "type": "post"}
+                )
 
             return comment_doc
 

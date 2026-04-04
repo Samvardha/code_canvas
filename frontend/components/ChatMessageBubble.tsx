@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Conversation, Message } from "@/lib/api/chat";
 import { formatTime, formatDateSeparator } from "@/lib/utils/formatters";
+import { Check, CheckCheck } from "lucide-react";
 
 interface ChatMessageBubbleProps {
   msg: Message;
@@ -107,7 +108,7 @@ export default function ChatMessageBubble({
           </div>
           <AnimatePresence>
             {(isRecentInBlock || focusedMessageId === msg.id) && (
-              <motion.p
+              <motion.div
                 initial={{ opacity: 0, height: 0, marginTop: 0 }}
                 animate={{ opacity: 1, height: "auto", marginTop: 4 }}
                 exit={{ opacity: 0, height: 0, marginTop: 0 }}
@@ -117,8 +118,19 @@ export default function ChatMessageBubble({
                     : "text-text-secondary/70 place-self-start text-left"
                 }`}
               >
-                {formatTime(msg.created_at)}
-              </motion.p>
+                <div className={`flex items-center gap-1.5 ${isMine ? "justify-end" : "justify-start"}`}>
+                  {formatTime(msg.created_at)}
+                  {isMine && (
+                    <div className="flex items-center">
+                      {msg.status === "seen" ? (
+                        <CheckCheck className="w-[10px] h-[10px] text-accent opacity-90" />
+                      ) : (
+                        <Check className="w-[10px] h-[10px] text-text-secondary opacity-40 ml-0.5" />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
         </div>

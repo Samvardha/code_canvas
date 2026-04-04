@@ -49,6 +49,7 @@ class ConversationResponse(BaseModel):
     unread_count: int = 0
     created_at: datetime
     updated_at: datetime
+    is_active_peer: Optional[bool] = None
 
 
 class ConversationListResponse(BaseModel):

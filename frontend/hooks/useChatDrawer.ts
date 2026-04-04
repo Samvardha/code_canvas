@@ -80,6 +80,18 @@ export function useChatDrawer({
 
       socket.off("new_message");
       socket.off("user_typing");
+      socket.off("messages_seen");
+
+      socket.on("messages_seen", (data: { conversation_id: string; user_id: string }) => {
+        const currentActiveConvId = activeConvIdRef.current;
+        if (currentActiveConvId === data.conversation_id && data.user_id !== currentUid) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.sender_id === currentUid ? { ...m, status: "seen" } : m
+            )
+          );
+        }
+      });
 
       socket.on("new_message", (msg: Message) => {
         const currentActiveConvId = activeConvIdRef.current;

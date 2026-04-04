@@ -15,6 +15,7 @@ export type Conversation = {
   unread_counts?: Record<string, number>;
   created_at: string;
   updated_at: string;
+  is_active_peer?: boolean;
 };
 
 export type Message = {
