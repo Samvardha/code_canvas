@@ -119,11 +119,23 @@ def register_chat_handlers(sio: socketio.AsyncServer):
 
     @sio.on("mark_as_read")
     async def on_mark_as_read(sid, data):
-        """ Reset transmission counters for a specific channel. """
+        """ 
+        Reset transmission counters for a specific channel. 
+        
+        Hardened for production:
+        1. Throttling: Prevents DB hammering on rapid UI events.
+        2. Atomic Order: Ensures success before broadcasting 'seen' signals.
+        3. Logging: Captures failures instead of swallowing them.
+        4. ACK: Provides confirmation back to the initiator.
+        """
         session = await sio.get_session(sid)
         uid = session.get("uid")
         if not uid:
             await sio.emit("error", {"message": "Access Denied"}, to=sid)
+            return
+
+        # 1. Frequency Control
+        if is_throttled(sid, "mark_as_read", 1.5):
             return
 
         conversation_id = data.get("conversationId") if isinstance(data, dict) else None
@@ -131,9 +143,30 @@ def register_chat_handlers(sio: socketio.AsyncServer):
             await sio.emit("error", {"message": "Channel identification required"}, to=sid)
             return
 
+        # 2. Database Update
         success, msg = await ChatService.mark_as_read(uid, conversation_id)
         if not success:
             await sio.emit("error", {"message": msg}, to=sid)
+            return
+
+        # 3. Network Synchronization (Broadcast 'seen' to peers)
+        try:
+            conv_col = await get_conversations_collection()
+            conv_oid = ObjectId(conversation_id)
+            conv = await conv_col.find_one({"_id": conv_oid}, {"participants": 1})
+            
+            if conv:
+                for p_uid in conv.get("participants", []):
+                    if p_uid != uid:
+                        await sio.emit("messages_seen", {
+                            "conversation_id": conversation_id,
+                            "user_id": uid
+                        }, room=p_uid)
+        except Exception as e:
+            logger.warning("Failed to propagate messages_seen signal for conv %s: %s", conversation_id, e)
+
+        # 4. Acknowledgment
+        return {"status": "ok", "conversationId": conversation_id}
 
 
     @sio.on("typing")
