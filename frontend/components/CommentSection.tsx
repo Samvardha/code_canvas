@@ -47,7 +47,7 @@ export function CommentSection({
       setComments(data);
     } catch (err) {
       console.error("Failed to fetch comments:", err);
-      setErrorToast({ isVisible: true, message: "SIGNAL_SYNC_ERROR" });
+      setErrorToast({ isVisible: true, message: "COMMENTS_SYNC_ERROR" });
     } finally {
       setLoading(false);
       setIsSyncing(false);
@@ -85,10 +85,10 @@ export function CommentSection({
       setComments(prev => [newComment, ...prev]);
       if (onCommentsCountChange) onCommentsCountChange(1);
       if (!isExpanded && onExpand) onExpand();
-      setErrorToast({ isVisible: true, message: "SIGNAL_TRANSMITTED" });
+      setErrorToast({ isVisible: true, message: "COMMENT_POSTED" });
     } catch (err) {
       console.error("Failed to create comment:", err);
-      setErrorToast({ isVisible: true, message: "SIGNAL_TRANSMISSION_ERROR" });
+      setErrorToast({ isVisible: true, message: "COMMENT_POST_ERROR" });
     }
   };
 
@@ -101,7 +101,7 @@ export function CommentSection({
     const replyCount = deleted?.replies?.length || 0;
     setComments(prev => prev.filter(c => c._id !== id));
     if (onCommentsCountChange) onCommentsCountChange(-(1 + replyCount));
-    setErrorToast({ isVisible: true, message: "SIGNAL_TERMINATED" });
+    setErrorToast({ isVisible: true, message: "COMMENT_DELETED" });
   };
 
   return (

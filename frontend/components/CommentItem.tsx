@@ -193,7 +193,7 @@ export function CommentItem({
                     isOpen={showMenu}
                     items={[
                       { 
-                        label: "TERMINATE_STRING", 
+                        label: "DELETE_COMMENT", 
                         icon: Trash2, 
                         onClick: handleDelete,
                         variant: "danger"
