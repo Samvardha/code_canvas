@@ -15,7 +15,7 @@ import {
   Github,
   Link as LinkIcon
 } from "lucide-react";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { deletePost, toggleLike } from "@/lib/api/posts";
@@ -24,6 +24,7 @@ import { MenuDropdown } from "./MenuDropdown";
 import Toast from "@/components/Toast";
 import { createPortal } from "react-dom";
 import { CommentSection } from "./CommentSection";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface PostCardProps {
   postId: string;
@@ -85,10 +86,38 @@ export function PostCard({
   const [direction, setDirection] = useState(1);
   const [commentDirection, setCommentDirection] = useState(1);
   const menuRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
   
   const isCollab = categories.includes("collab");
   const isEvent = categories.includes("event");
   const isOwner = currentUserId === authorId;
+
+  const updatePostCache = useCallback((updater: (p: any) => any) => {
+    queryClient.setQueriesData(
+      { 
+        predicate: (query) => {
+          const k = query.queryKey[0];
+          return typeof k === 'string' && (k.includes('feed') || k.includes('posts') || k === 'post');
+        }
+      },
+      (oldData: any) => {
+        if (!oldData) return oldData;
+        if (oldData.pages) {
+          return {
+            ...oldData,
+            pages: oldData.pages.map((page: any) => ({
+              ...page,
+              posts: page.posts.map((p: any) => p._id === postId ? updater(p) : p)
+            }))
+          };
+        }
+        if (oldData._id === postId) {
+          return updater(oldData);
+        }
+        return oldData;
+      }
+    );
+  }, [queryClient, postId]);
 
   // Handle click outside to close menu
   useEffect(() => {
@@ -191,15 +220,34 @@ export function PostCard({
     try {
       const idToken = await getToken();
       if (!idToken) throw new Error("AUTH_REQUIRED");
+      
+      updatePostCache((p) => ({ 
+         ...p, 
+         is_liked: !previousIsLiked, 
+         stats: { ...p.stats, likes_count: previousIsLiked ? p.stats.likes_count - 1 : p.stats.likes_count + 1 } 
+      }));
+
       const result = await toggleLike(postId, idToken);
       if (result.success) {
         setIsLikedInternal(result.liked);
         setCurrentLikes(result.likes_count);
+        updatePostCache((p) => ({ 
+           ...p, 
+           is_liked: result.liked, 
+           stats: { ...p.stats, likes_count: result.likes_count } 
+        }));
       }
     } catch (err) {
       console.error("Failed to toggle like:", err);
       setIsLikedInternal(previousIsLiked);
       setCurrentLikes(previousLikes);
+      
+      updatePostCache((p) => ({ 
+         ...p, 
+         is_liked: previousIsLiked, 
+         stats: { ...p.stats, likes_count: previousLikes } 
+      }));
+      
       setErrorToast({ isVisible: true, message: "LIKE_ACTION_FAILED" });
     } finally {
       setIsLiking(false);
@@ -599,7 +647,18 @@ export function PostCard({
           onExpand={() => setIsCommentsExpanded(true)}
           onCommentsCountChange={(delta) => {
             setCommentDirection(delta > 0 ? 1 : -1);
-            setCurrentCommentsCount(prev => prev + delta);
+            setCurrentCommentsCount(prev => {
+              const newCount = prev + delta;
+              updatePostCache(p => ({ ...p, stats: { ...p.stats, comments_count: newCount } }));
+              return newCount;
+            });
+          }}
+          onCommentsListSync={(totalCount) => {
+            if (totalCount !== currentCommentsCount) {
+              setCommentDirection(totalCount > currentCommentsCount ? 1 : -1);
+              setCurrentCommentsCount(totalCount);
+              updatePostCache((p) => ({ ...p, stats: { ...p.stats, comments_count: totalCount } }));
+            }
           }}
         />
       </div>

@@ -22,6 +22,7 @@ interface CommentSectionProps {
   currentUserId?: string | null;
   isExpanded: boolean;
   onCommentsCountChange?: (delta: number) => void;
+  onCommentsListSync?: (total: number) => void;
   onExpand?: () => void;
 }
 
@@ -31,6 +32,7 @@ export function CommentSection({
   currentUserId,
   isExpanded,
   onCommentsCountChange,
+  onCommentsListSync,
   onExpand
 }: CommentSectionProps) {
   const [comments, setComments] = useState<Comment[]>([]);
@@ -45,6 +47,11 @@ export function CommentSection({
       const idToken = getToken ? await getToken() : null;
       const data = await getComments(postId, idToken || undefined);
       setComments(data);
+
+      if (onCommentsListSync) {
+        const totalComments = data.length + data.reduce((acc, c) => acc + (c.replies?.length || 0), 0);
+        onCommentsListSync(totalComments);
+      }
     } catch (err) {
       console.error("Failed to fetch comments:", err);
       setErrorToast({ isVisible: true, message: "COMMENTS_SYNC_ERROR" });

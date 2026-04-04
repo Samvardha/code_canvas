@@ -12,7 +12,7 @@ export type Notification = {
   recipient_id: string;
   sender_id: string;
   sender_username: string;
-  type: "like" | "comment" | "peer_request" | "peer_accept";
+  type: "like" | "comment" | "peer_request" | "peer_accept" | "comment_like" | "comment_reply";
   entity: NotificationEntity;
   is_read: boolean;
   created_at: string;

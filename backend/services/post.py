@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from bson import ObjectId
-from utils.database import get_posts_collection, get_users_collection, get_post_likes_collection
+from utils.database import get_posts_collection, get_users_collection, get_post_likes_collection, get_comments_collection, get_comment_likes_collection
 from utils.cloudinary_utils import delete_media
 from models.post import PostCreateRequest, Category
 from utils.serialization import prepare_for_mongo
@@ -65,7 +65,7 @@ class PostService:
 
 
     @staticmethod
-    async def update_post(post_id: str, author_id: str, update_data: Dict[str, Any], removed_media_ids: List[str] = None) -> Optional[Dict[str, Any]]:
+    async def update_post(post_id: str, author_id: str, update_data: Dict[str, Any], removed_media_ids: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
         """
         Modify an existing post. Only the authorized author may execute this.
         """
@@ -124,7 +124,26 @@ class PostService:
                     res_type = "video" if media.get("type") == "video" else "image"
                     delete_media(public_id, resource_type=res_type)
             
-            # 3. Database cleanup and metric synchronization
+            # 3. Cascading Database Cleanup
+            post_likes_collection = await get_post_likes_collection()
+            comments_collection = await get_comments_collection()
+            comment_likes_collection = await get_comment_likes_collection()
+
+            # 3a. Delete all post likes
+            await post_likes_collection.delete_many({"post_id": ObjectId(post_id)})
+
+            # 3b. Find and delete all comments (and their likes)
+            cursor = comments_collection.find({"post_id": ObjectId(post_id)}, {"_id": 1})
+            comments = await cursor.to_list(length=None)
+            if comments:
+                comment_ids = [c["_id"] for c in comments]
+                await comment_likes_collection.delete_many({"comment_id": {"$in": comment_ids}})
+                await comments_collection.delete_many({"post_id": ObjectId(post_id)})
+
+            # 3d. Purge all notifications tied to this post (comments, likes, etc)
+            await NotificationService.delete_all_for_entity(post_id, "post")
+
+            # 3e. Delete the core post node and synchronize metrics
             await posts_collection.delete_one({"_id": ObjectId(post_id)})
             await users_collection.update_one(
                 {"_id": author_id},
@@ -214,7 +233,7 @@ class PostService:
             post_likes = await get_post_likes_collection()
             
             # 1. Build Query Filter
-            query = {}
+            query: Dict[str, Any] = {}
             if categories:
                 category_values = [c.value if isinstance(c, Category) else c for c in categories]
                 query["categories"] = {"$in": category_values}
@@ -315,6 +334,16 @@ class PostService:
                     {"$inc": {"stats.likes_count": -1}},
                     return_document=True
                 )
+                
+                # Cleanup Notification
+                if result:
+                    await NotificationService.delete_notification(
+                        sender_id=user_id,
+                        recipient_id=result.get("author_id", ""),
+                        notif_type="like",
+                        entity_id=post_id
+                    )
+
                 updated_count = result.get("stats", {}).get("likes_count", 0) if result else 0
                 return {"liked": False, "likes_count": updated_count}
             else:

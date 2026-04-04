@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any
 from bson import ObjectId
 from utils.database import get_comments_collection, get_comment_likes_collection, get_posts_collection
 from models.comment import CommentCreateRequest
+from services.notification import NotificationService
 
 # [ CONFIGURATION ] ────────────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
@@ -56,15 +57,24 @@ class CommentService:
                 {"$inc": {"stats.comments_count": 1}}
             )
 
-            # 5. Trigger notification for the post author
+            # 5. Trigger notifications rationally 
+            recipients = set()
+
             post = await posts.find_one({"_id": ObjectId(post_id)}, {"author_id": 1})
-            if post:
-                from services.notification import NotificationService
+            if post and post.get("author_id") != author_id:
+                recipients.add(post.get("author_id"))
+
+            if parent_comment_id:
+                parent = await comments.find_one({"_id": ObjectId(parent_comment_id)}, {"author_id": 1})
+                if parent and parent.get("author_id") != author_id:
+                    recipients.add(parent.get("author_id"))
+
+            for rec in recipients:
                 await NotificationService.create_notification(
-                    recipient_id=post.get("author_id", ""),
+                    recipient_id=rec,
                     sender_id=author_id,
-                    type="comment",
-                    entity={"id": post_id, "type": "post"}
+                    type="comment_reply" if parent_comment_id and rec == parent.get("author_id") else "comment",
+                    entity={"id": str(post_id), "type": "post"}
                 )
 
             return comment_doc
@@ -91,21 +101,38 @@ class CommentService:
             if comment["author_id"] != author_id:
                 raise Exception("Unauthorized")
 
-            # 2. Count children for accurate post-stat decrement
-            reply_count = await comments_col.count_documents({"parent_comment_id": ObjectId(comment_id)})
+            # 2. Recursively gather ALL nested descendants via graphLookup
+            pipeline = [
+                {"$match": {"_id": ObjectId(comment_id)}},
+                {
+                    "$graphLookup": {
+                        "from": "comments",
+                        "startWith": "$_id",
+                        "connectFromField": "_id",
+                        "connectToField": "parent_comment_id",
+                        "as": "descendants"
+                    }
+                },
+                {"$project": {"descendant_ids": "$descendants._id"}}
+            ]
             
-            # 3. Perform cascading removal
-            await comments_col.delete_many({
-                "$or": [
-                    {"_id": ObjectId(comment_id)},
-                    {"parent_comment_id": ObjectId(comment_id)}
-                ]
-            })
+            cursor = comments_col.aggregate(pipeline)
+            docs = await cursor.to_list(length=1)
+            
+            descendant_ids = docs[0].get("descendant_ids", []) if docs else []
+            all_ids_to_delete = [ObjectId(comment_id)] + descendant_ids
+            
+            # 3. Purge orphaned likes attached to any of the deleted comments
+            comment_likes_col = await get_comment_likes_collection()
+            await comment_likes_col.delete_many({"comment_id": {"$in": all_ids_to_delete}})
+            
+            # 4. Perform infinite-depth cascading bulk removal
+            await comments_col.delete_many({"_id": {"$in": all_ids_to_delete}})
 
-            # 4. Synchronize the parent post's aggregate counts
+            # 5. Synchronize the parent post's aggregate counts precisely
             await posts_col.update_one(
                 {"_id": comment["post_id"]},
-                {"$inc": {"stats.comments_count": -(1 + reply_count)}}
+                {"$inc": {"stats.comments_count": -len(all_ids_to_delete)}}
             )
 
             return True
@@ -225,6 +252,15 @@ class CommentService:
                     {"$inc": {"stats.likes_count": -1}},
                     return_document=True
                 )
+                
+                if result:
+                    await NotificationService.delete_notification(
+                        sender_id=user_id,
+                        recipient_id=result.get("author_id", ""),
+                        notif_type="comment_like",
+                        entity_id=str(result.get("post_id", ""))
+                    )
+
                 return {
                     "liked": False,
                     "likes_count": result.get("stats", {}).get("likes_count", 0) if result else 0
@@ -241,6 +277,16 @@ class CommentService:
                     {"$inc": {"stats.likes_count": 1}},
                     return_document=True
                 )
+                
+                # 3. Notification Logic
+                if result and result.get("author_id") != user_id:
+                    await NotificationService.create_notification(
+                        recipient_id=result.get("author_id"),
+                        sender_id=user_id,
+                        type="comment_like",
+                        entity={"id": str(result.get("post_id")), "type": "post"}
+                    )
+
                 return {
                     "liked": True,
                     "likes_count": result.get("stats", {}).get("likes_count", 0) if result else 0
