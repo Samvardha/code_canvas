@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NavbarWrapper } from "@/components/NavbarWrapper";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const inter = Inter({
@@ -44,6 +45,7 @@ export default function RootLayout({
         <AuthProvider>
           <NavbarWrapper>{children}</NavbarWrapper>
           <Analytics />
+          <SpeedInsights />
         </AuthProvider>
       </body>
     </html>
