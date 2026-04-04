@@ -22,6 +22,7 @@ interface CommentSectionProps {
   currentUserId?: string | null;
   isExpanded: boolean;
   onCommentsCountChange?: (delta: number) => void;
+  onExpand?: () => void;
 }
 
 export function CommentSection({ 
@@ -29,7 +30,8 @@ export function CommentSection({
   token, 
   currentUserId,
   isExpanded,
-  onCommentsCountChange 
+  onCommentsCountChange,
+  onExpand
 }: CommentSectionProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +79,8 @@ export function CommentSection({
 
       setComments(prev => [newComment, ...prev]);
       if (onCommentsCountChange) onCommentsCountChange(1);
+      if (!isExpanded && onExpand) onExpand();
+      setErrorToast({ isVisible: true, message: "SIGNAL_TRANSMITTED" });
     } catch (err) {
       console.error("Failed to create comment:", err);
       setErrorToast({ isVisible: true, message: "SIGNAL_TRANSMISSION_ERROR" });
@@ -88,12 +92,11 @@ export function CommentSection({
   };
 
   const handleDelete = (id: string) => {
-    setComments(prev => {
-      const deleted = prev.find(c => c._id === id);
-      const replyCount = deleted?.replies?.length || 0;
-      if (onCommentsCountChange) onCommentsCountChange(-(1 + replyCount));
-      return prev.filter(c => c._id !== id);
-    });
+    const deleted = comments.find(c => c._id === id);
+    const replyCount = deleted?.replies?.length || 0;
+    setComments(prev => prev.filter(c => c._id !== id));
+    if (onCommentsCountChange) onCommentsCountChange(-(1 + replyCount));
+    setErrorToast({ isVisible: true, message: "SIGNAL_TERMINATED" });
   };
 
   return (

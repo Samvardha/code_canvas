@@ -519,14 +519,14 @@ export function PostCard({
             <button 
               onClick={handleLike}
               disabled={isLiking}
-              className={`flex items-center gap-0 transition-all duration-300 cursor-pointer group/stat active:scale-90 ${isLikedInternal ? "text-accent" : "text-text-secondary hover:text-accent"}`}
+              className={`flex items-center gap-0 transition-all duration-300 cursor-pointer group/stat ${isLikedInternal ? "text-accent" : "text-text-secondary md:hover:text-accent"}`}
             >
-              <div className={`p-2 rounded-full transition-colors ${isLikedInternal ? "bg-accent/5" : "hover:bg-accent/5"}`}>
+              <div className={`p-2 rounded-full transition-colors ${isLikedInternal ? "bg-accent/5" : "md:hover:bg-accent/5"}`}>
                 <motion.div
                   animate={isLikedInternal ? { scale: [1, 1.4, 1] } : { scale: 1 }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
                 >
-                  <Heart className={`w-5 h-5 ${isLikedInternal ? "fill-accent text-accent" : "group-hover/stat:fill-accent"}`} />
+                  <Heart className={`w-5 h-5 ${isLikedInternal ? "fill-accent text-accent" : "md:group-hover/stat:fill-accent"}`} />
                 </motion.div>
               </div>
               <div className="overflow-hidden relative h-[18px] flex items-center">
@@ -547,9 +547,9 @@ export function PostCard({
             
             <button 
               onClick={() => setIsCommentsExpanded(!isCommentsExpanded)}
-              className={`flex items-center gap-0 transition-all duration-300 cursor-pointer group/stat active:scale-95 ${isCommentsExpanded ? "text-accent" : "text-text-secondary hover:text-white"}`}
+              className={`flex items-center gap-0 transition-all duration-300 cursor-pointer group/stat ${isCommentsExpanded ? "text-accent" : "text-text-secondary md:hover:text-white"}`}
             >
-              <div className={`p-2 rounded-full transition-colors ${isCommentsExpanded ? "bg-accent/5" : "hover:bg-white/5"}`}>
+              <div className={`p-2 rounded-full transition-colors ${isCommentsExpanded ? "bg-accent/5" : "md:hover:bg-white/5"}`}>
                 <MessageCircle className={`w-5 h-5 ${isCommentsExpanded ? "fill-accent/20" : ""}`} />
               </div>
               <div className="overflow-hidden relative h-[18px] flex items-center">
@@ -585,6 +585,7 @@ export function PostCard({
           token={token}
           currentUserId={currentUserId}
           isExpanded={isCommentsExpanded}
+          onExpand={() => setIsCommentsExpanded(true)}
           onCommentsCountChange={(delta) => {
             setCommentDirection(delta > 0 ? 1 : -1);
             setCurrentCommentsCount(prev => prev + delta);
