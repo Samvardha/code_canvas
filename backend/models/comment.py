@@ -4,21 +4,26 @@ from datetime import datetime
 from utils.serialization import COMMON_JSON_ENCODERS
 
 class CommentContent(BaseModel):
+    """The textual content of a peer's comment."""
     text: str
 
 class CommentStats(BaseModel):
+    """Engagement metrics specifically for comments."""
     likes_count: int = 0
 
 class CommentCreateRequest(BaseModel):
+    """Schema for incoming data to create a new comment or reply."""
     text: str
 
 class CommentAuthor(BaseModel):
+    """Simplified profile data of the user who authored the comment."""
     firebase_uid: str
     username: Optional[str] = None
     name: Optional[str] = None
     avatar_url: Optional[str] = None
 
 class CommentResponse(BaseModel):
+    """Detailed comment data structure, including nested replies and metadata."""
     id: str = Field(alias="_id")
     post_id: str
     author_id: str

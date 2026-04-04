@@ -3,14 +3,25 @@ import logging
 import firebase_admin
 from firebase_admin import credentials
 
+# [ FIREBASE CONFIGURATION ] ───────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
 
+
 def initialize_firebase():
-    """Initialize Firebase Admin SDK."""
+    """
+    Initialize the Firebase Admin SDK for identity orchestration.
+    
+    Logic Flow:
+    1. Singleton Check: Prevents redundant initializations.
+    2. Credential Lookup: Searches for serviceAccountKey.json or env variables.
+    3. Bootstrapping: Connects to the Cloud Identity provider.
+    """
+    # 1. Singleton Check
     if firebase_admin._apps:
         logger.info("Firebase Admin already initialized")
         return
 
+    # 2. Credential Discovery
     cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "serviceAccountKey.json")
     try:
         if os.path.exists(cred_path):

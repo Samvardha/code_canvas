@@ -6,21 +6,25 @@ from enum import Enum
 
 
 class Category(str, Enum):
+    """Broad classification for posts in the feed."""
     COLLAB = "collab"
     EVENT = "event"
 
 
 class Link(BaseModel):
+    """External URL shared within a post content block."""
     url: str
     title: Optional[str] = None
 
 
 class MediaType(str, Enum):
+    """Supported file types for post media attachments."""
     IMAGE = "image"
     VIDEO = "video"
 
 
 class Media(BaseModel):
+    """Rich media metadata (images/videos) associated with a post."""
     type: MediaType
     url: str
     thumbnail_url: Optional[str] = None
@@ -33,24 +37,28 @@ class Media(BaseModel):
 
 
 class Content(BaseModel):
+    """Container for the primary text, links, and media of a post."""
     text: Optional[str] = None
     links: List[Link] = Field(default_factory=list)
     media: List[Media] = Field(default_factory=list)
 
 
 class GitHubMeta(BaseModel):
+    """Repository information for posts linking to GitHub projects."""
     repo_url: Optional[str] = None
     repo_name: Optional[str] = None
     repo_owner: Optional[str] = None
 
 
 class PostStatus(str, Enum):
+    """Operational status of a collaboration request."""
     OPEN = "open"
     CLOSED = "closed"
     FILLED = "filled"
 
 
 class CollabMeta(BaseModel):
+    """Specialized metadata for collaboration-focused posts."""
     title: str
     looking_for: List[str] = Field(default_factory=list)
     requirements: List[str] = Field(default_factory=list)
@@ -59,11 +67,13 @@ class CollabMeta(BaseModel):
 
 
 class EventMode(str, Enum):
+    """Specifies if an event is held physically or virtually."""
     OFFLINE = "offline"
     ONLINE = "online"
 
 
 class EventStatus(str, Enum):
+    """Lifecycle state of a scheduled event."""
     UPCOMING = "upcoming"
     ONGOING = "ongoing"
     COMPLETED = "completed"
@@ -71,6 +81,7 @@ class EventStatus(str, Enum):
 
 
 class Venue(BaseModel):
+    """Physical location details for offline events."""
     address: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
@@ -78,6 +89,7 @@ class Venue(BaseModel):
 
 
 class EventMeta(BaseModel):
+    """Specialized metadata for event-focused posts."""
     title: str
     description: Optional[str] = None
     venue: Optional[Venue] = None
@@ -89,12 +101,14 @@ class EventMeta(BaseModel):
 
 
 class PostStats(BaseModel):
+    """Engagement counters (likes, comments, etc.) for a post."""
     likes_count: int = 0
     comments_count: int = 0
     shares_count: int = 0
 
 
 class PostCreateRequest(BaseModel):
+    """Schema for validating incoming data when creating a new post."""
     categories: List[Category] = Field(default_factory=list)
     content: Content
     github: Optional[GitHubMeta] = None
@@ -133,6 +147,7 @@ class PostCreateRequest(BaseModel):
 
 
 class PostResponse(BaseModel):
+    """Full post data structure sent to the frontend UI."""
     id: str = Field(alias="_id")
     author_id: str
     author: Optional[Dict[str, Any]] = None 
@@ -152,6 +167,7 @@ class PostResponse(BaseModel):
 
 
 class FeedResponse(BaseModel):
+    """Paginated list of posts for various feed views."""
     posts: List[PostResponse]
     total: int
     has_more: bool

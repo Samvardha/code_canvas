@@ -2,42 +2,93 @@ import json
 import logging
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Query
-
 from utils.auth import get_current_uid
 from services.post import PostService
 from models.post import PostCreateRequest, PostResponse, FeedResponse, Category
 from utils.cloudinary_utils import upload_media
 
-
+# [ CONFIGURATION & CONSTANTS ] ────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/posts", tags=["posts"])
 
-# Constants for file validation
 MAX_IMAGE_SIZE = 5 * 1024 * 1024
 MAX_VIDEO_SIZE = 50 * 1024 * 1024
 ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
-ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"] # mov is video/quicktime
+ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"]
+
+
+# [ FEED OPERATIONS ] ─────────────────────────────────────────────────────────
+
+@router.get("/feed/explore", response_model=FeedResponse)
+async def get_explore_feed(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=50),
+    uid: str = Depends(get_current_uid)
+):
+    """
+    Retrieve the global explore feed.
+    
+    - Returns latest posts from all categories.
+    - Supported pagination via offset and limit.
+    """
+    return await PostService.fetch_feed(offset=offset, limit=limit, current_user_id=uid)
+
+
+@router.get("/feed/collab", response_model=FeedResponse)
+async def get_collab_feed(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=50),
+    uid: str = Depends(get_current_uid)
+):
+    """Get only 'collaboration' category posts."""
+    return await PostService.fetch_feed(categories=[Category.COLLAB], offset=offset, limit=limit, current_user_id=uid)
+
+
+@router.get("/feed/events", response_model=FeedResponse)
+async def get_events_feed(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=50),
+    uid: str = Depends(get_current_uid)
+):
+    """Get only 'event' category posts."""
+    return await PostService.fetch_feed(categories=[Category.EVENT], offset=offset, limit=limit, current_user_id=uid)
+
+
+@router.get("/user/{userId}", response_model=FeedResponse)
+async def get_user_posts(
+    userId: str,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=50),
+    uid: str = Depends(get_current_uid)
+):
+    """Fetch all transmissions broadcasted by a specific peer."""
+    return await PostService.fetch_feed(userId=userId, offset=offset, limit=limit, current_user_id=uid)
+
+
+# [ SINGULAR POST OPERATIONS ] ────────────────────────────────────────────────
 
 @router.post("", response_model=PostResponse)
 async def create_post(
-    data: str = Form(...),  # JSON string containing PostCreateRequest
+    data: str = Form(...),
     files: List[UploadFile] = File(None),
     uid: str = Depends(get_current_uid)
 ):
     """
-    Create a new post with optional media.
-    The 'data' field should be a JSON string matching PostCreateRequest.
+    Create a new post with optional rich media.
+    
+    - Validates MIME types for images/videos.
+    - Uploads media to Cloudinary CDN.
+    - Requires valid Firebase UID via dependency.
     """
     try:
-        # 1. Parse and validate JSON data
+        # 1. Parse and validate JSON metadata
         try:
             json_data = json.loads(data)
             post_request = PostCreateRequest(**json_data)
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Invalid JSON data: {str(e)}")
 
-        # 2. Process and validate files
+        # 2. Process and synchronize media attachments
         media_items = []
         if files:
             for file in files:
@@ -66,9 +117,8 @@ async def create_post(
                 
                 media_items.append(upload_res)
 
-        # 3. Create post in database
+        # 3. Finalize the database transaction
         post = await PostService.create_post(uid, post_request, media_items)
-        
         return post
 
     except HTTPException:
@@ -78,50 +128,9 @@ async def create_post(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/feed/explore", response_model=FeedResponse)
-async def get_explore_feed(
-    offset: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=50),
-    uid: str = Depends(get_current_uid)
-):
-    """Get all posts, latest first."""
-    return await PostService.fetch_feed(offset=offset, limit=limit, current_user_id=uid)
-
-
-@router.get("/feed/collab", response_model=FeedResponse)
-async def get_collab_feed(
-    offset: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=50),
-    uid: str = Depends(get_current_uid)
-):
-    """Get only collab posts."""
-    return await PostService.fetch_feed(categories=[Category.COLLAB], offset=offset, limit=limit, current_user_id=uid)
-
-
-@router.get("/feed/events", response_model=FeedResponse)
-async def get_events_feed(
-    offset: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=50),
-    uid: str = Depends(get_current_uid)
-):
-    """Get only event posts."""
-    return await PostService.fetch_feed(categories=[Category.EVENT], offset=offset, limit=limit, current_user_id=uid)
-
-
-@router.get("/user/{userId}", response_model=FeedResponse)
-async def get_user_posts(
-    userId: str,
-    offset: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=50),
-    uid: str = Depends(get_current_uid)
-):
-    """Get posts by a specific user."""
-    return await PostService.fetch_feed(userId=userId, offset=offset, limit=limit, current_user_id=uid)
-
-
 @router.get("/{postId}", response_model=PostResponse)
 async def get_single_post(postId: str, uid: str = Depends(get_current_uid)):
-    """Get a single post by ID."""
+    """Retrieve a specific post by its Unique ID."""
     from bson.errors import InvalidId
     try:
         post = await PostService.fetch_post(postId, current_user_id=uid)
@@ -135,13 +144,17 @@ async def get_single_post(postId: str, uid: str = Depends(get_current_uid)):
 @router.patch("/{postId}", response_model=PostResponse)
 async def update_post(
     postId: str,
-    data: dict,  # Simple JSON body for updates
+    data: dict,
     uid: str = Depends(get_current_uid)
 ):
-    """Update post details."""
+    """
+    Update details of an existing post.
+    
+    - Authorization check: only authors can update.
+    - Supports atomic removal of media IDs.
+    """
     try:
-        # Note: In a real app, you might want to handle media changes here too.
-        # But per requirements, we'll keep it robust but not overengineered.
+        # Note: Handled author authorization in service layer
         removed_media = data.pop("removed_media_ids", [])
         
         post = await PostService.update_post(postId, uid, data, removed_media)
@@ -156,7 +169,7 @@ async def update_post(
 
 @router.delete("/{postId}")
 async def delete_post(postId: str, uid: str = Depends(get_current_uid)):
-    """Delete a post."""
+    """Remove a post and its associated engagement data."""
     try:
         success = await PostService.delete_post(postId, uid)
         if not success:
@@ -168,12 +181,14 @@ async def delete_post(postId: str, uid: str = Depends(get_current_uid)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# [ SOCIAL ENGAGEMENT ] ───────────────────────────────────────────────────────
+
 @router.post("/{postId}/like")
 async def toggle_post_like(
     postId: str,
     uid: str = Depends(get_current_uid)
 ):
-    """Toggle like on a post."""
+    """Toggle a peer's like status on a specific post."""
     try:
         result = await PostService.toggle_like(postId, uid)
         return {

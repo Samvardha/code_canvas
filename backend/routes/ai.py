@@ -5,10 +5,12 @@ from services.ai import AIService
 from services.user import UserService
 from models.ai import SuggestionRequest, SuggestionResponse
 
+# [ CONFIGURATION ] ────────────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/ai", tags=["ai"])
 
+
+# [ AI GENERATION ] ────────────────────────────────────────────────────────────
 
 @router.post("/suggest-caption", response_model=SuggestionResponse)
 async def suggest_caption(
@@ -16,10 +18,13 @@ async def suggest_caption(
 ):
     """
     Generate AI-powered caption suggestions for a post draft.
-    Includes rate-limiting and context fetching.
+    
+    - Fetches user context (profile/skills) to personalize suggestions.
+    - Implements rate-limiting to prevent heavy costs.
+    - Uses Gemini models via AIService.
     """
     try:
-        # 1. Fetch User Context for better suggestions
+        # 1. Fetch user context for better suggestions
         user_doc = await UserService.fetch_user_profile(current_uid)
         if not user_doc or "profile" not in user_doc:
             user_context = {}
@@ -30,7 +35,7 @@ async def suggest_caption(
                 "skills": profile.get("skills", [])[:5],  # Limit skills to save tokens
             }
 
-        # 2. Call AI Service
+        # 2. Proxy request to refined AI models
         suggestions = await AIService.suggest_captions(
             current_uid, request.draft, user_context
         )
@@ -44,6 +49,7 @@ async def suggest_caption(
         return SuggestionResponse(
             suggestions=suggestions, message="[ ANALYZED_AND_REFINED_BY_GEMINI_AI ]"
         )
+
     except Exception as e:
         if "Rate limit" in str(e):
             raise HTTPException(

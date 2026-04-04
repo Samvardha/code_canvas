@@ -8,49 +8,51 @@ from models.chat import (Conversation, Message, MessageContent, MessageStatus)
 from services.user import UserService
 from utils.serialization import datetime_serializer
 
+# [ CONFIGURATION ] ────────────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
 
 
 class ChatService:
-    """Service layer for all chat business logic."""
+    """
+    Service layer for managing peer-to-peer encrypted transmissions.
+    
+    Orchestrates conversation lifecycles, message persistence, and unread 
+    tracking with cursor-based pagination for high-volume logs.
+    """
 
 
-    @staticmethod
-    async def _are_peers(user_a: str, user_b: str) -> bool:
-        """Check whether two users are connected peers."""
-        peers_col = await get_peers_collection()
-        users_sorted = sorted([user_a, user_b])
-        doc = await peers_col.find_one({"users": users_sorted})
-        return doc is not None
-
+    # [ CONVERSATION OPERATIONS ] ──────────────────────────────────────────────
 
     @staticmethod
     async def start_or_get_conversation(
         current_uid: str, target_uid: str
     ) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         """
-        Start a new conversation or return existing one.
-        Returns (success, message, conversation_doc | None).
+        Initiate a new transmission channel or retrieve an existing one.
+        
+        Logic Flow:
+        1. Peer Validation: Users must be connected peers to chat.
+        2. Lookup: Search for existing channel by participant UIDs.
+        3. Provisioning: Create new Conversation record if no prior channel exists.
+        4. Enrichment: Attach participant profile metadata for the UI.
         """
         if current_uid == target_uid:
             return False, "Cannot start a conversation with yourself", None
 
-        # 1. Verify peer connection
+        # 1. Verify peer connectivity
         if not await ChatService._are_peers(current_uid, target_uid):
             return False, "You can only chat with your peers", None
 
         conv_col = await get_conversations_collection()
         participants = sorted([current_uid, target_uid])
 
-        # 2. Check existing
+        # 2. Sequential Lookup & Provisioning
         existing = await conv_col.find_one({"participants": participants})
         if existing:
             existing["id"] = str(existing.pop("_id"))
             await ChatService._enrich_conversation_profiles([existing])
             return True, "Conversation found", existing
 
-
-        # 3. Create new
         now = datetime.utcnow()
         new_conv = Conversation(
             participants=participants,
@@ -63,30 +65,33 @@ class ChatService:
             doc = new_conv.dict()
             doc["id"] = str(result.inserted_id)
         except pymongo.errors.DuplicateKeyError:
+            # Race condition: another request created it simultaneously
             existing = await conv_col.find_one({"participants": participants})
             if not existing:
                 return False, "Failed to create or retrieve conversation", None
             existing["id"] = str(existing.pop("_id"))
             doc = existing
 
+        # 3. Final Metadata Injection
         await ChatService._enrich_conversation_profiles([doc])
-        
-        logger.info(
-            "Conversation created or retrieved between %s and %s", current_uid, target_uid
-        )
+        logger.info(f"Transmission channel established between {current_uid} and {target_uid}")
         return True, "Success", doc
+
 
     @staticmethod
     async def get_conversations(
         user_id: str, cursor: Optional[str] = None, limit: int = 10
     ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
         """
-        Paginated list of conversations for a user.
-        Uses cursor-based pagination on `updated_at`.
+        Retrieve a paginated list of active channels for a user.
+        
+        Uses a double-sort cursor (updated_at + ID) to ensure stability 
+        across concurrent updates.
         """
         conv_col = await get_conversations_collection()
-
         query: Dict[str, Any] = {"participants": user_id}
+        
+        # 1. Handle cursor-based pagination logic
         if cursor:
             try:
                 if "|" in cursor:
@@ -101,8 +106,9 @@ class ChatService:
                     cursor_dt = datetime.fromisoformat(cursor)
                     query["updated_at"] = {"$lt": cursor_dt}
             except Exception:
-                pass
+                logger.warning("Malformed conversation cursor ignored")
 
+        # 2. Execute paginated query
         docs = await (
             conv_col.find(query)
             .sort([("updated_at", -1), ("_id", -1)])
@@ -110,6 +116,7 @@ class ChatService:
             .to_list(length=limit + 1)
         )
 
+        # 3. Process results and identify next cursor
         next_cursor: Optional[str] = None
         if len(docs) > limit:
             docs = docs[:limit]
@@ -134,23 +141,37 @@ class ChatService:
 
 
     @staticmethod
-    async def _enrich_conversation_profiles(conversations: List[Dict[str, Any]]) -> None:
-        """Helper to batch fetch participant profiles and attach to conversations."""
-        all_participant_ids = set()
-        for d in conversations:
-            all_participant_ids.update(d.get("participants", []))
-        
-        if not all_participant_ids:
-            return
+    async def mark_as_read(
+        user_id: str, conversation_id: str
+    ) -> Tuple[bool, str]:
+        """ Reset the unread counter and update individual message status to SEEN. """
+        conv_col = await get_conversations_collection()
+        try:
+            conv_oid = ObjectId(conversation_id)
+        except Exception:
+            return False, "Invalid conversation ID"
 
-        profiles = await UserService.fetch_chat_profiles(list(all_participant_ids))
-        profile_map = {p["user_id"]: p for p in profiles}
+        # 1. Reset unread counts on the conversation node
+        await conv_col.update_one(
+            {"_id": conv_oid},
+            {"$set": {f"unread_counts.{user_id}": 0}},
+        )
 
-        for d in conversations:
-            d["participant_profiles"] = {
-                uid: profile_map.get(uid, {}) for uid in d.get("participants", [])
-            }
+        # 2. Batch update foreign message statuses to SEEN
+        msg_col = await get_messages_collection()
+        await msg_col.update_many(
+            {
+                "conversation_id": conv_oid,
+                "sender_id": {"$ne": user_id},
+                "status": {"$ne": MessageStatus.SEEN.value},
+            },
+            {"$set": {"status": MessageStatus.SEEN.value}},
+        )
 
+        return True, "OK"
+
+
+    # [ MESSAGE OPERATIONS ] ───────────────────────────────────────────────────
 
     @staticmethod
     async def get_messages(
@@ -160,22 +181,24 @@ class ChatService:
         limit: int = 20,
     ) -> Tuple[bool, str, List[Dict[str, Any]], Optional[str]]:
         """
-        Paginated messages for a conversation.
-        Returns (success, message, messages, next_cursor).
+        Fetch historical transmission logs for a specific channel.
+        
+        Requires participant validation before exposing sensitive history.
         """
         conv_col = await get_conversations_collection()
-
         try:
             conv_oid = ObjectId(conversation_id)
         except Exception:
             return False, "Invalid conversation ID", [], None
 
+        # 1. Authorization: Verify requester is a participant
         conv = await conv_col.find_one({"_id": conv_oid})
         if not conv:
             return False, "Conversation not found", [], None
         if user_id not in conv.get("participants", []):
             return False, "You are not a participant", [], None
 
+        # 2. Query construction with cursor logic
         msg_col = await get_messages_collection()
         query: Dict[str, Any] = {"conversation_id": conv_oid}
         if cursor:
@@ -192,8 +215,9 @@ class ChatService:
                     cursor_dt = datetime.fromisoformat(cursor)
                     query["created_at"] = {"$lt": cursor_dt}
             except Exception:
-                pass
+                logger.warning("Malformed message cursor ignored")
 
+        # 3. Execution & Fetching
         docs = await (
             msg_col.find(query)
             .sort([("created_at", -1), ("_id", -1)])
@@ -223,16 +247,18 @@ class ChatService:
         sender_id: str, conversation_id: str, text: str
     ) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         """
-        Validate, persist, and return the new message document.
-        Returns (success, error_or_ok, message_doc | None).
+        Persist a new message and update the channel's 'last_message' summary.
+        
+        Atomic process ensuring both the message collection and 
+        conversation summary stay synchronized.
         """
         conv_col = await get_conversations_collection()
-
         try:
             conv_oid = ObjectId(conversation_id)
         except Exception:
             return False, "Invalid conversation ID", None
 
+        # 1. Pre-flight Checks: Participant status & Peer status
         conv = await conv_col.find_one({"_id": conv_oid})
         if not conv:
             return False, "Conversation not found", None
@@ -241,16 +267,11 @@ class ChatService:
         if sender_id not in participants:
             return False, "You are not a participant", None
 
-        # Identify receiver
-        receiver_id = (
-            participants[0] if participants[1] == sender_id else participants[1]
-        )
-
-        # Verify peer connection still exists
+        receiver_id = (participants[0] if participants[1] == sender_id else participants[1])
         if not await ChatService._are_peers(sender_id, receiver_id):
             return False, "You are no longer peers with this user", None
 
-        # Persist message
+        # 2. Persist the Message record
         now = datetime.utcnow()
         msg = Message(
             conversation_id=conversation_id,
@@ -265,7 +286,7 @@ class ChatService:
         msg_col = await get_messages_collection()
         result = await msg_col.insert_one(msg_dict)
 
-        # Update conversation
+        # 3. Synchronize Conversation Metadata
         await conv_col.update_one(
             {"_id": conv_oid},
             {
@@ -281,8 +302,7 @@ class ChatService:
             },
         )
 
-        # Build response payload
-        msg_doc = {
+        return True, "OK", {
             "id": str(result.inserted_id),
             "conversation_id": conversation_id,
             "sender_id": sender_id,
@@ -290,41 +310,33 @@ class ChatService:
             "status": MessageStatus.SENT.value,
             "created_at": datetime_serializer(now),
         }
-        return True, "OK", msg_doc
+
+
+    # [ INTERNAL UTILITIES ] ───────────────────────────────────────────────────
+
+    @staticmethod
+    async def _are_peers(user_a: str, user_b: str) -> bool:
+        """ Identity verification for valid peer-to-peer relationships. """
+        peers_col = await get_peers_collection()
+        users_sorted = sorted([user_a, user_b])
+        doc = await peers_col.find_one({"users": users_sorted})
+        return doc is not None
 
 
     @staticmethod
-    async def mark_as_read(
-        user_id: str, conversation_id: str
-    ) -> Tuple[bool, str]:
-        """Reset unread count for `user_id` in the conversation."""
-        conv_col = await get_conversations_collection()
+    async def _enrich_conversation_profiles(conversations: List[Dict[str, Any]]) -> None:
+        """ High-performance batch injection of participant profile metadata. """
+        all_participant_ids = set()
+        for d in conversations:
+            all_participant_ids.update(d.get("participants", []))
+        
+        if not all_participant_ids:
+            return
 
-        try:
-            conv_oid = ObjectId(conversation_id)
-        except Exception:
-            return False, "Invalid conversation ID"
+        profiles = await UserService.fetch_chat_profiles(list(all_participant_ids))
+        profile_map = {p["user_id"]: p for p in profiles}
 
-        conv = await conv_col.find_one({"_id": conv_oid})
-        if not conv:
-            return False, "Conversation not found"
-        if user_id not in conv.get("participants", []):
-            return False, "You are not a participant"
-
-        await conv_col.update_one(
-            {"_id": conv_oid},
-            {"$set": {f"unread_counts.{user_id}": 0}},
-        )
-
-        # Optionally: mark all messages as seen
-        msg_col = await get_messages_collection()
-        await msg_col.update_many(
-            {
-                "conversation_id": conv_oid,
-                "sender_id": {"$ne": user_id},
-                "status": {"$ne": MessageStatus.SEEN.value},
-            },
-            {"$set": {"status": MessageStatus.SEEN.value}},
-        )
-
-        return True, "OK"
+        for d in conversations:
+            d["participant_profiles"] = {
+                uid: profile_map.get(uid, {}) for uid in d.get("participants", [])
+            }

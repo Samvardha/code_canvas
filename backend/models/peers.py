@@ -5,6 +5,7 @@ from enum import Enum
 
 
 class ConnectionStatus(str, Enum):
+    """The current relationship state between two users (e.g., connected, pending, etc)."""
     ADD = "add"
     PENDING = "pending"
     ACCEPT = "accept"
@@ -32,6 +33,6 @@ class ConnectionStatusResponse(BaseModel):
 
 
 class UserConnectionsResponse(BaseModel):
-    """Response model for listing user connections."""
+    """List of all user IDs that are established peers with the requested user."""
     userId: str
     connections: List[str]

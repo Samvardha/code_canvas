@@ -1,12 +1,13 @@
 import os
+import logging
 import cloudinary
 import cloudinary.uploader
 from typing import Optional
-import logging
 
+# [ CDN CONFIGURATION ] ────────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
 
-# Configure Cloudinary
+# Primary storage node configuration for the Global Asset Delivery Network
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
     api_key=os.getenv("CLOUDINARY_API_KEY"),
@@ -14,28 +15,29 @@ cloudinary.config(
     secure=True
 )
 
+
+# [ ASSET MANAGEMENT ] ────────────────────────────────────────────────────────
+
 def upload_media(file_content: bytes, resource_type: str = "auto", folder: str = "posts") -> Optional[dict]:
     """
-    Upload media (image/video) to Cloudinary and return full metadata.
+    Transmit media bytes to the CDN and retrieve structural metadata.
     
-    Args:
-        file_content: The file bytes to upload
-        resource_type: "image", "video", or "auto"
-        folder: Cloudinary folder to store the media
-        
-    Returns:
-        Dictionary with Cloudinary metadata or None if upload fails
+    Logic Flow:
+    1. Transmission: Uploads binary data to specific environment folders.
+    2. Transcription: For videos, triggers eager thumbnail generation.
+    3. Normalization: Standardizes the response format for database persistence.
     """
     try:
+        # 1. Execute upload with context-aware folder structure
         response = cloudinary.uploader.upload(
             file_content,
-            folder=f"Code Canvas/{folder}",
+            folder=f"TechConnect/{folder}",
             resource_type=resource_type,
-            # For videos, generate a thumbnail
+            # Generate fallback visuals for video streams
             eager=[{"width": 400, "height": 300, "crop": "pad", "format": "jpg"}] if resource_type == "video" else []
         )
         
-        # Normalize response
+        # 2. Extract and format cross-platform metadata
         result = {
             "url": response.get("secure_url"),
             "public_id": response.get("public_id"),
@@ -46,39 +48,37 @@ def upload_media(file_content: bytes, resource_type: str = "auto", folder: str =
             "type": response.get("resource_type")
         }
         
+        # 3. Handle stream-specific attributes
         if resource_type == "video" or response.get("resource_type") == "video":
             result["duration_sec"] = response.get("duration")
-            # Get thumbnail from eager or dedicated transformation
             if response.get("eager"):
                 result["thumbnail_url"] = response["eager"][0].get("secure_url")
         
         return result
-    except Exception as e:
-        logger.error(f"Cloudinary upload failed: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error("CDN Transmission Failure: Multi-media upload failed", exc_info=True)
         return None
 
+
 def delete_media(public_id: str, resource_type: str = "image") -> bool:
-    """
-    Delete media from Cloudinary.
-    """
+    """ Purge a specific asset node from the Global Delivery Network. """
     try:
         cloudinary.uploader.destroy(public_id, resource_type=resource_type)
         return True
-    except Exception as e:
-        logger.error(f"Cloudinary delete failed: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error(f"CDN Purification Failure: Asset {public_id} remains logic-bound", exc_info=True)
         return False
 
+
 def upload_image(file_path_or_blob: any, folder: str = "avatars") -> Optional[str]:
-    """
-    Legacy helper for backward compatibility.
-    """
+    """ Optimized ingestion for profile-level iconography (Avatars). """
     try:
         response = cloudinary.uploader.upload(
             file_path_or_blob,
-            folder=f"Code Canvas/{folder}",
+            folder=f"TechConnect/{folder}",
             resource_type="image"
         )
         return response.get("secure_url")
-    except Exception as e:
-        logger.error(f"Cloudinary upload failed: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error("CDN Iconography Failure: Avatar ingestion failed", exc_info=True)
         return None

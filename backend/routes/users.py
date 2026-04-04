@@ -11,10 +11,12 @@ from utils.security import decrypt_token
 from utils.database import get_users_collection
 from utils.cloudinary_utils import upload_image
 
+# [ CONFIGURATION & ROUTING ] ──────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/users", tags=["users"])
 
+
+# [ SEARCH & VALIDATION ] ──────────────────────────────────────────────────────
 
 @router.get("/search")
 async def search_users(
@@ -25,7 +27,12 @@ async def search_users(
 ):
     """
     Search for users by username or name with pagination.
+    
+    - Filters out the current user from results.
+    - Performs a case-insensitive regex search.
+    - Returns total match count for frontend pagination.
     """
+    # 1. Validate search query
     if q is None or not q.strip():
         return JSONResponse(
             status_code=400,
@@ -39,8 +46,8 @@ async def search_users(
             content={"error": True, "message": "Search query must be at least 2 characters"}
         )
 
+    # 2. Prepare database filters
     q_escaped = re.escape(query_str)
-    
     collection = await get_users_collection()
     
     search_filter = {
@@ -63,9 +70,8 @@ async def search_users(
         "profile.bio": 1
     }
     
-    # Get total count for pagination info
+    # 3. Execute paginated query
     total_matches = await collection.count_documents(search_filter)
-    
     cursor = collection.find(search_filter, projection).skip(offset).limit(limit)
     
     users = []
@@ -87,12 +93,28 @@ async def search_users(
     }
 
 
+@router.get("/check-username/{username}")
+async def check_username(username: str):
+    """
+    Check if a username handle is globally available.
+    """
+    try:
+        available = await UserService.is_username_available(username)
+        return {"available": available}
+    except Exception:
+        logger.error("Failed to check username availability", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to check username")
+
+
+# [ PROFILE ACCESS ] ───────────────────────────────────────────────────────────
+
 @router.get("/profile/{username}")
 async def get_user_by_username(username: str, uid: str = Depends(get_current_uid)):
     """
-    Fetch any user's profile by their username.
+    Fetch any user's public profile by their unique username handle.
     
-    Returns public user profile with sensitive data redacted.
+    - Redacts sensitive information (emails, tokens).
+    - Includes basic stats (follower/post counts).
     """
     try:
         user = await UserService.fetch_user_by_username(username)
@@ -110,18 +132,61 @@ async def get_user_by_username(username: str, uid: str = Depends(get_current_uid
         raise HTTPException(status_code=500, detail="Failed to fetch user profile")
 
 
-@router.get("/check-username/{username}")
-async def check_username(username: str):
+@router.get("/me")
+async def get_current_user(uid: str = Depends(get_current_uid)):
     """
-    Check if a username is available.
+    Fetch the complete profile for the currently authenticated user.
     """
     try:
-        available = await UserService.is_username_available(username)
-        return {"available": available}
-    except Exception:
-        logger.error("Failed to check username", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to check username")
+        user = await UserService.fetch_user_profile(uid)
 
+        if not user:
+            logger.warning("Authenticated user not found in DB", extra={"uid": uid})
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return user
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.error("Failed to fetch current user profile", exc_info=True, extra={"uid": uid})
+        raise HTTPException(status_code=500, detail="Failed to fetch user profile")
+
+
+# [ MEDIA & UPLOADS ] ──────────────────────────────────────────────────────────
+
+@router.post("/me/upload-avatar")
+async def upload_user_avatar(
+    file: UploadFile = File(...),
+    uid: str = Depends(get_current_uid)
+):
+    """
+    Upload a new profile picture to Cloudinary.
+    
+    - Validates MIME types (JPEG/PNG only).
+    - Enforces 5MB file size limit.
+    - Returns the hosted CDN URL.
+    """
+    # 1. Validate file type
+    if file.content_type not in ["image/jpeg", "image/png"]:
+        raise HTTPException(status_code=400, detail="ONLY_JPEG_OR_PNG_ALLOWED")
+    
+    # 2. Validate file size (5MB)
+    MAX_SIZE = 5 * 1024 * 1024
+    content = await file.read()
+    if len(content) > MAX_SIZE:
+        raise HTTPException(status_code=400, detail="FILE_TOO_LARGE_MAX_5MB")
+    
+    # 3. Securely upload to Cloudinary
+    url = upload_image(content)
+    
+    if not url:
+        raise HTTPException(status_code=500, detail="CDN_UPLOAD_FAILED")
+    
+    return {"url": url}
+
+
+# [ GITHUB INTEGRATION ] ───────────────────────────────────────────────────────
 
 @router.get("/profile/{username}/github")
 async def get_public_github_profile(
@@ -131,11 +196,13 @@ async def get_public_github_profile(
     uid: str = Depends(get_current_uid)
 ):
     """
-    Fetch public GitHub profile data for any user.
-    Uses public APIs without needing the target user's token.
+    Fetch public GitHub profile data for any peer.
+    
+    - Uses a tiered token system (Requester Token > System Token > Public) for rate limits.
+    - Returns repository lists and account overview.
     """
     try:
-        # 1. Fetch the user from database to get their GitHub username
+        # 1. Identify target GitHub handle
         user_doc = await UserService.fetch_user_by_username(username)
         if not user_doc:
             raise HTTPException(status_code=404, detail="User not found")
@@ -149,7 +216,7 @@ async def get_public_github_profile(
                 "data": None,
             }
 
-        # 2. Check if the requester (current user) has a GitHub token to use for higher rate limits
+        # 2. Extract requester's token to avoid system rate-limiting
         collection = await get_users_collection()
         requester_doc = await collection.find_one(
             {"_id": uid},
@@ -162,13 +229,13 @@ async def get_public_github_profile(
             if encrypted_token:
                 access_token = decrypt_token(encrypted_token)
 
-        # 3. Fallback to system-wide GitHub token if available
+        # 3. Fallback to server-side system token
         if not access_token:
             encrypted_system_token = os.getenv("GITHUB_TOKEN")
             if encrypted_system_token:
                 access_token = decrypt_token(encrypted_system_token)
 
-        # 4. Fetch fresh public GitHub data (optionally using requester's or system token)
+        # 4. Proxy request to GitHub APIs
         github_data = await GitHubService.fetch_public_profile(
             github_username, 
             page=page, 
@@ -184,31 +251,8 @@ async def get_public_github_profile(
     except HTTPException:
         raise
     except Exception:
-        logger.error("Failed to fetch public GitHub profile", exc_info=True, extra={"username": username})
+        logger.error("GitHub public profile fetch failed", exc_info=True, extra={"username": username})
         raise HTTPException(status_code=500, detail="Failed to fetch public GitHub profile")
-
-
-@router.get("/me")
-async def get_current_user(uid: str = Depends(get_current_uid)):
-    """
-    Fetch authenticated user's profile.
-    
-    Returns user profile with sensitive data redacted.
-    """
-    try:
-        user = await UserService.fetch_user_profile(uid)
-
-        if not user:
-            logger.warning("User not found", extra={"uid": uid})
-            raise HTTPException(status_code=404, detail="User not found")
-
-        return user
-
-    except HTTPException:
-        raise
-    except Exception:
-        logger.error("Failed to fetch user profile", exc_info=True, extra={"uid": uid})
-        raise HTTPException(status_code=500, detail="Failed to fetch user profile")
 
 
 @router.get("/me/github")
@@ -219,9 +263,10 @@ async def get_github_profile(
     uid: str = Depends(get_current_uid)
 ):
     """
-    Fetch fresh GitHub profile data or repositories for authenticated user.
+    Fetch fresh GitHub data or repositories for the authenticated user.
     """
     try:
+        # 1. Verify user's GitHub link status
         collection = await get_users_collection()
         user_doc = await collection.find_one(
             {"_id": uid},
@@ -229,8 +274,7 @@ async def get_github_profile(
         )
 
         if not user_doc:
-            logger.warning("User not found", extra={"uid": uid})
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail="User records missing")
 
         github_info = user_doc.get("providers", {}).get("github", {})
         encrypted_token = github_info.get("access_token")
@@ -238,35 +282,21 @@ async def get_github_profile(
         if not encrypted_token:
             if repos is not None:
                 return {"repos": [], "has_more": False}
-            return {
-                "connected": False,
-                "data": None,
-            }
+            return {"connected": False, "data": None}
 
-        # Decrypt and fetch data
+        # 2. Decrypt PII (Tokens)
         plain_token = decrypt_token(encrypted_token)
         if not plain_token:
-            logger.error("Failed to decrypt GitHub token", extra={"uid": uid})
-            raise HTTPException(status_code=500, detail="Failed to decrypt GitHub token")
+            logger.error("Token decryption failed", extra={"uid": uid})
+            raise HTTPException(status_code=500, detail="Token processing error")
 
+        # 3. Execute selective GitHub API call
         repos_only = repos is not None
         github_data = await GitHubService.fetch_user_profile(
             plain_token, 
             page=page, 
             per_page=per_page,
             repos_only=repos_only
-        )
-
-        if repos_only:
-            logger.info(
-                "GitHub repositories retrieved for selection", 
-                extra={"uid": uid, "repo_count": len(github_data.get("repos", [])), "page": page}
-            )
-            return github_data
-
-        logger.info(
-            "GitHub profile retrieved successfully",
-            extra={"uid": uid, "username": github_data.get("identity", {}).get("username")}
         )
 
         return {
@@ -277,37 +307,5 @@ async def get_github_profile(
     except HTTPException:
         raise
     except Exception:
-        logger.error("Failed to fetch GitHub data", exc_info=True, extra={"uid": uid})
-        raise HTTPException(status_code=500, detail="Failed to fetch GitHub data")
-
-
-@router.post("/me/upload-avatar")
-async def upload_user_avatar(
-    file: UploadFile = File(...),
-    uid: str = Depends(get_current_uid)
-):
-    """
-    Upload user avatar to Cloudinary.
-    
-    Accepts image file, validates size (< 5MB) and type (JPEG/PNG),
-    and returns the Cloudinary URL.
-    """
-    # 1. Validate file type
-    if file.content_type not in ["image/jpeg", "image/png"]:
-        raise HTTPException(status_code=400, detail="ONLY_JPEG_OR_PNG_ALLOWED")
-    
-    # 2. Validate file size (5MB = 5 * 1024 * 1024 bytes)
-    MAX_SIZE = 5 * 1024 * 1024
-    content = await file.read()
-    if len(content) > MAX_SIZE:
-        raise HTTPException(status_code=400, detail="FILE_TOO_LARGE_MAX_5MB")
-    
-    # 3. Upload to Cloudinary
-    # Reset file pointer to beginning for upload if needed, 
-    # but since we already have content, we can pass it directly
-    url = upload_image(content)
-    
-    if not url:
-        raise HTTPException(status_code=500, detail="UPLOAD_FAILED")
-    
-    return {"url": url}
+        logger.error("GitHub private data fetch failed", exc_info=True, extra={"uid": uid})
+        raise HTTPException(status_code=500, detail="Internal GitHub sync error")
