@@ -129,21 +129,10 @@ export default function FeedPage() {
             </div>
           </>
         ) : (
-          <div className="p-20 text-center flex flex-col items-center gap-4 bg-black">
-            <div className="w-12 h-12 border border-border flex items-center justify-center">
-              <Cpu className="w-6 h-6 text-text-secondary" />
-            </div>
-            <div className="text-[10px] font-mono text-text-secondary uppercase tracking-[0.2em]">
-              NO_SIGNALS_DETECTED_IN_THIS_SECTOR
-            </div>
-            <Button 
-              variant="secondary" 
-              size="sm" 
-              onClick={() => router.push("/posts/create")}
-              className="mt-2"
-            >
-              INITIALIZE_SIGNAL
-            </Button>
+           <div className="px-6 py-16 sm:p-20 text-center bg-black flex flex-col items-center justify-center">
+            <p className="text-text-secondary font-mono text-xs sm:text-sm uppercase tracking-widest italic">
+              [ NO_SIGNALS_FOUND_IN_THIS_SECTOR ]
+            </p>
           </div>
         )}
       </FeedLayout>

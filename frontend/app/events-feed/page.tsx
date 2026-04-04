@@ -103,9 +103,9 @@ export default function EventsFeedPage() {
             </div>
           </>
         ) : (
-          <div className="p-20 text-center bg-black">
-            <p className="text-text-secondary font-mono text-sm uppercase tracking-widest italic animate-pulse">
-              [ NO_EVENT_SIGNALS_FOUND_IN_THIS_SECTOR ]
+           <div className="px-6 py-16 sm:p-20 text-center bg-black flex flex-col items-center justify-center">
+            <p className="text-text-secondary font-mono text-xs sm:text-sm uppercase tracking-widest italic animate-pulse">
+              [ NO_SIGNALS_FOUND_IN_THIS_SECTOR ]
             </p>
           </div>
         )}

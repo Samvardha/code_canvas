@@ -84,12 +84,15 @@ export default function UserPostsPage() {
             ))}
           </AnimatePresence>
         ) : (
-          <div className="py-20 text-center border border-dashed border-border flex flex-col items-center gap-4 bg-surface/10">
-             <div className="text-[10px] font-mono text-text-secondary uppercase tracking-widest">
-               No_Posts_Detected
+          <div className="py-10 sm:py-20 text-center flex flex-col items-center gap-4 bg-transparent">
+             <div className="text-xs sm:text-sm font-mono text-text-secondary uppercase tracking-widest">
+              [ NO_POSTS_DETECTED ]
              </div>
              {isCurrentUser && (
-               <Button onClick={() => router.push("/posts/create")} size="sm">
+               <Button onClick={() => router.push("/posts/create")} size="sm"
+                variant="secondary"
+                className="text-xs"
+               >
                  INITIALIZE_FIRST_POST
                </Button>
              )}

@@ -118,13 +118,13 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
             <div className="flex border-b border-border bg-background/50">
               <button 
                 onClick={() => router.push(`/profile/${username}`)}
-                className={`flex-1 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] border-r border-border transition-colors ${!isPostsTab ? 'text-accent bg-accent/5' : 'text-text-secondary hover:text-white hover:bg-white/5'}`}
+                className={`flex-1 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] border-r border-border transition-colors ${!isPostsTab ? 'text-accent bg-accent/5' : 'text-text-secondary hover:text-white hover:bg-white/5 cursor-pointer'}`}
               >
                 [ 01_PROFILE_DATA ]
               </button>
               <button 
                 onClick={() => router.push(`/profile/${username}/posts`)}
-                className={`flex-1 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] transition-colors ${isPostsTab ? 'text-accent bg-accent/5' : 'text-text-secondary hover:text-white hover:bg-white/5'}`}
+                className={`flex-1 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] transition-colors ${isPostsTab ? 'text-accent bg-accent/5' : 'text-text-secondary hover:text-white hover:bg-white/5 cursor-pointer'}`}
               >
                 [ 02_USER_POSTS ]
               </button>
