@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPost, Post } from "@/lib/api/posts";
+import { getPost } from "@/lib/api/posts";
 import { PostCard } from "@/components/PostCard";
+import { PostCardSkeleton } from "@/components/PostCardSkeleton";
+import { useQuery } from "@tanstack/react-query";
 import { FeedLayout } from "@/components/FeedLayout";
-import { Loader2, AlertCircle, ArrowLeft, TrendingUp } from "lucide-react";
+import { AlertCircle, TrendingUp } from "lucide-react";
 import Toast from "@/components/Toast";
 import { Button } from "@/components/Button";
 
@@ -14,35 +16,43 @@ export default function SinglePostPage() {
   const router = useRouter();
   const params = useParams();
   const { user, loading: authLoading } = useAuth();
-  
-  const [post, setPost] = useState<Post | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const postId = params.id as string;
+
+  const getToken = async () => {
+    if (!user) return null;
+    return user.getIdToken();
+  };
+
+  const {
+    data: post,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["post", postId],
+    queryFn: async () => {
+      const idToken = await getToken();
+      if (!idToken) throw new Error("AUTH_REQUIRED");
+      return getPost(postId, idToken);
+    },
+    enabled: !!user && !authLoading,
+  });
+
   const [errorToast, setErrorToast] = useState({ isVisible: false, message: "" });
-  const [token, setToken] = useState<string>("");
 
   useEffect(() => {
-    async function fetchSinglePost() {
-      if (!user) return;
-      try {
-        setLoading(true);
-        const t = await user.getIdToken();
-        setToken(t);
-        const data = await getPost(params.id as string, t);
-        setPost(data);
-      } catch (err: any) {
-        console.error("Failed to fetch post:", err);
-        setErrorToast({ isVisible: true, message: err.message || "FAILED TO ACQUIRE SIGNAL" });
-      } finally {
-        setLoading(false);
-      }
+    if (isError) {
+      console.error("Failed to fetch post:", error);
+      setErrorToast({ isVisible: true, message: (error as any).message || "FAILED TO ACQUIRE SIGNAL" });
     }
+  }, [isError, error]);
 
-    if (!authLoading && user) {
-      fetchSinglePost();
-    } else if (!authLoading && !user) {
-      setLoading(false);
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/explore-feed");
     }
-  }, [user, authLoading, params.id]);
+  }, [user, authLoading, router]);
 
   const handleDelete = () => {
     // Navigate away if the currently viewed isolated post is deleted
@@ -52,7 +62,7 @@ export default function SinglePostPage() {
   return (
     <>
       <FeedLayout
-        isSyncing={authLoading || loading}
+        isSyncing={authLoading || isLoading}
         syncingText="LOCATING_SIGNAL"
         headerTitle={
           <div className="flex items-center">
@@ -95,10 +105,9 @@ export default function SinglePostPage() {
           </>
         }
       >
-        {loading || authLoading ? (
-          <div className="p-20 flex flex-col items-center justify-center gap-4 bg-black min-h-[50vh]">
-            <Loader2 className="w-8 h-8 text-accent animate-spin" />
-            <span className="text-[10px] font-mono text-accent uppercase tracking-widest">DECRYPTING_PACKETS...</span>
+        {isLoading || authLoading ? (
+          <div className="pt-0">
+            <PostCardSkeleton />
           </div>
         ) : post ? (
           <div className="pt-0">
@@ -106,7 +115,7 @@ export default function SinglePostPage() {
               postId={post._id}
               authorId={post.author_id}
               currentUserId={user?.uid}
-              token={token}
+              getToken={getToken}
               onDelete={handleDelete}
               username={post.author?.name || "Anonymous"}
               userHandle={post.author?.username || "unknown"}

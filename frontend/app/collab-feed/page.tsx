@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { PostCard } from "@/components/PostCard";
+import { PostCardSkeleton } from "@/components/PostCardSkeleton";
 import { getCollabFeed } from "@/lib/api/posts";
 import { FeedLayout } from "@/components/FeedLayout";
 import { useFeed } from "@/hooks/useFeed";
@@ -21,13 +22,13 @@ export default function CollabFeedPage() {
     loading, 
     loadingMore,
     hasMore,
-    token, 
+    getToken,
     authLoading, 
     user, 
     errorToast, 
     setErrorToast,
     loadMore
-  } = useFeed(getCollabFeed);
+  } = useFeed("collabFeed", getCollabFeed);
 
   const observerRef = useIntersectionObserver(loadMore, [hasMore, loadingMore, loading]);
 
@@ -55,9 +56,9 @@ export default function CollabFeedPage() {
         }
       >
         {loading ? (
-          <div className="p-20 flex flex-col items-center justify-center gap-4 bg-black">
-            <Loader2 className="w-8 h-8 text-accent animate-spin" />
-            <span className="text-[10px] font-mono text-accent uppercase tracking-widest">Intercepting_Collabs...</span>
+          <div className="flex flex-col gap-px bg-border">
+            <PostCardSkeleton />
+            <PostCardSkeleton />
           </div>
         ) : posts.length > 0 ? (
           <>
@@ -68,7 +69,7 @@ export default function CollabFeedPage() {
                   postId={post._id}
                   authorId={post.author_id}
                   currentUserId={user?.uid}
-                  token={token}
+                  getToken={getToken}
                   onDelete={(id) => setPosts(posts.filter(p => p._id !== id))}
                   username={post.author?.name || "Anonymous"}
                   userHandle={post.author?.username || "unknown"}
@@ -102,9 +103,9 @@ export default function CollabFeedPage() {
             </div>
           </>
         ) : (
-          <div className="p-20 text-center bg-black">
-            <p className="text-text-secondary font-mono text-sm uppercase tracking-widest italic animate-pulse">
-              [ NO_COLLAB_SIGNALS_FOUND_IN_THIS_SECTOR ]
+          <div className="px-6 py-16 sm:p-20 text-center bg-black flex flex-col items-center justify-center">
+            <p className="text-text-secondary font-mono text-xs sm:text-sm uppercase tracking-widest italic">
+              [ NO_SIGNALS_FOUND_IN_THIS_SECTOR ]
             </p>
           </div>
         )}

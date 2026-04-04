@@ -11,6 +11,7 @@ import { AvatarUploadModal } from "@/components/AvatarUploadModal";
 import { getUserProfile, updateUserProfile } from "@/lib/api/users";
 import { CONNECTION_STATUS_ERROR } from "@/lib/messages";
 import { PublicProfileResponse } from "../types";
+import Image from "next/image";
 
 interface ProfileContextType {
   profileData: any;
@@ -117,13 +118,13 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
             <div className="flex border-b border-border bg-background/50">
               <button 
                 onClick={() => router.push(`/profile/${username}`)}
-                className={`flex-1 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] border-r border-border transition-colors ${!isPostsTab ? 'text-accent bg-accent/5' : 'text-text-secondary hover:text-white hover:bg-white/5'}`}
+                className={`flex-1 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] border-r border-border transition-colors ${!isPostsTab ? 'text-accent bg-accent/5' : 'text-text-secondary hover:text-white hover:bg-white/5 cursor-pointer'}`}
               >
                 [ 01_PROFILE_DATA ]
               </button>
               <button 
                 onClick={() => router.push(`/profile/${username}/posts`)}
-                className={`flex-1 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] transition-colors ${isPostsTab ? 'text-accent bg-accent/5' : 'text-text-secondary hover:text-white hover:bg-white/5'}`}
+                className={`flex-1 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] transition-colors ${isPostsTab ? 'text-accent bg-accent/5' : 'text-text-secondary hover:text-white hover:bg-white/5 cursor-pointer'}`}
               >
                 [ 02_USER_POSTS ]
               </button>
@@ -139,7 +140,15 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                   <div className="flex items-center gap-6 flex-1 min-w-0">
                     <div className="relative group shrink-0">
                       {profileToDisplay?.avatar_url ? (
-                        <img src={profileToDisplay.avatar_url} alt="avatar" className="h-24 w-24 border border-border object-cover" />
+                        <div className="h-24 w-24 border border-border relative">
+                          <Image 
+                            src={profileToDisplay.avatar_url} 
+                            alt="avatar" 
+                            fill
+                            sizes="96px"
+                            className="object-cover" 
+                          />
+                        </div>
                       ) : (
                         <div className="flex h-24 w-24 items-center justify-center bg-accent text-black text-2xl font-bold font-mono">
                           {(profileToDisplay?.name?.[0] || profileToDisplay?.username?.[0] || "U").toUpperCase()}

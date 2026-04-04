@@ -1,6 +1,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { Conversation, Message } from "@/lib/api/chat";
 import { formatTime, formatDateSeparator } from "@/lib/utils/formatters";
 import { Check, CheckCheck } from "lucide-react";
@@ -62,13 +63,15 @@ export default function ChatMessageBubble({
           <Link
             href={`/profile/${activeConversation?.participant_profiles?.[msg.sender_id]?.username || msg.sender_id}`}
             onClick={onClose}
-            className="w-8 h-8 shrink-0 border border-border bg-surface flex items-center justify-center overflow-hidden"
+            className="w-8 h-8 shrink-0 border border-border bg-surface flex items-center justify-center overflow-hidden relative"
           >
             {activeConversation?.participant_profiles?.[msg.sender_id]?.avatar_url ? (
-              <img
+              <Image
                 src={activeConversation.participant_profiles[msg.sender_id].avatar_url}
                 alt=""
-                className="w-full h-full object-cover"
+                fill
+                sizes="32px"
+                className="object-cover"
               />
             ) : (
               <span className="text-[7px] font-mono font-bold text-accent">

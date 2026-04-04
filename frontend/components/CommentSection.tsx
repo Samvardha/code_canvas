@@ -18,7 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface CommentSectionProps {
   postId: string;
-  token?: string | null;
+  getToken?: () => Promise<string | null>;
   currentUserId?: string | null;
   isExpanded: boolean;
   onCommentsCountChange?: (delta: number) => void;
@@ -27,7 +27,7 @@ interface CommentSectionProps {
 
 export function CommentSection({ 
   postId, 
-  token, 
+  getToken, 
   currentUserId,
   isExpanded,
   onCommentsCountChange,
@@ -42,16 +42,18 @@ export function CommentSection({
   const fetchComments = useCallback(async () => {
     try {
       setIsSyncing(true);
-      const data = await getComments(postId, token || undefined);
+      const idToken = getToken ? await getToken() : null;
+      const data = await getComments(postId, idToken || undefined);
       setComments(data);
     } catch (err) {
       console.error("Failed to fetch comments:", err);
-      setErrorToast({ isVisible: true, message: "SIGNAL_SYNC_ERROR" });
+      setErrorToast({ isVisible: true, message: "COMMENTS_SYNC_ERROR" });
     } finally {
       setLoading(false);
       setIsSyncing(false);
     }
-  }, [postId, token]);
+  }, [postId, getToken]);
+
 
   useEffect(() => {
     if (isExpanded) {
@@ -60,9 +62,12 @@ export function CommentSection({
   }, [fetchComments, isExpanded]);
 
   const handleCreateComment = async (text: string) => {
-    if (!token || !user || !userProfile?.profile) return;
+    if (!getToken || !user || !userProfile?.profile) return;
     try {
-      const serverComment = await addComment(postId, text, token);
+      const idToken = await getToken();
+      if (!idToken) throw new Error("AUTH_REQUIRED");
+      const serverComment = await addComment(postId, text, idToken);
+
       
       // Inject local profile info for immediate display
       const newComment: Comment = {
@@ -80,10 +85,10 @@ export function CommentSection({
       setComments(prev => [newComment, ...prev]);
       if (onCommentsCountChange) onCommentsCountChange(1);
       if (!isExpanded && onExpand) onExpand();
-      setErrorToast({ isVisible: true, message: "SIGNAL_TRANSMITTED" });
+      setErrorToast({ isVisible: true, message: "COMMENT_POSTED" });
     } catch (err) {
       console.error("Failed to create comment:", err);
-      setErrorToast({ isVisible: true, message: "SIGNAL_TRANSMISSION_ERROR" });
+      setErrorToast({ isVisible: true, message: "COMMENT_POST_ERROR" });
     }
   };
 
@@ -96,7 +101,7 @@ export function CommentSection({
     const replyCount = deleted?.replies?.length || 0;
     setComments(prev => prev.filter(c => c._id !== id));
     if (onCommentsCountChange) onCommentsCountChange(-(1 + replyCount));
-    setErrorToast({ isVisible: true, message: "SIGNAL_TERMINATED" });
+    setErrorToast({ isVisible: true, message: "COMMENT_DELETED" });
   };
 
   return (
@@ -126,7 +131,7 @@ export function CommentSection({
                   comment={comment}
                   postId={postId}
                   currentUserId={currentUserId}
-                  token={token}
+                  getToken={getToken}
                   onCommentUpdate={handleUpdate}
                   onCommentDelete={handleDelete}
                 />

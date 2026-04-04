@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-
-import React, { useState } from "react";
+import Image from "next/image";
+import { useState } from "react";
 import { 
   Heart, 
   Trash2, 
@@ -21,7 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 interface CommentItemProps {
   comment: Comment;
   currentUserId?: string | null;
-  token?: string | null;
+  getToken?: () => Promise<string | null>;
   postId: string;
   onCommentUpdate: (updatedComment: Comment) => void;
   onCommentDelete: (commentId: string) => void;
@@ -30,7 +30,7 @@ interface CommentItemProps {
 export function CommentItem({ 
   comment, 
   currentUserId, 
-  token, 
+  getToken, 
   postId,
   onCommentUpdate, 
   onCommentDelete 
@@ -46,7 +46,7 @@ export function CommentItem({
   const hasReplies = comment.replies && comment.replies.length > 0;
 
   const handleLike = async () => {
-    if (!token || isLiking) return;
+    if (!getToken || isLiking) return;
 
     const previousLikes = comment.stats.likes_count;
     const previousIsLiked = comment.is_liked;
@@ -65,7 +65,9 @@ export function CommentItem({
 
     try {
       setIsLiking(true);
-      const res = await toggleCommentLike(comment._id, token);
+      const idToken = await getToken();
+      if (!idToken) throw new Error("AUTH_REQUIRED");
+      const res = await toggleCommentLike(comment._id, idToken);
       onCommentUpdate({
         ...comment,
         is_liked: res.liked,
@@ -94,10 +96,12 @@ export function CommentItem({
   const { user, userProfile } = useAuth();
 
   const handleReplySubmit = async (text: string) => {
-    if (!token || !user || !userProfile?.profile) return;
+    if (!getToken || !user || !userProfile?.profile) return;
     try {
-      const serverReply = await addReply(comment._id, text, token);
-      
+      const idToken = await getToken();
+      if (!idToken) throw new Error("AUTH_REQUIRED");
+      const serverReply = await addReply(comment._id, text, idToken);
+
       const newReply: Comment = {
         ...serverReply,
         author: {
@@ -122,10 +126,12 @@ export function CommentItem({
   };
 
   const handleDelete = async () => {
-    if (!token || isDeleting) return;
+    if (!getToken || isDeleting) return;
     try {
       setIsDeleting(true);
-      await deleteComment(comment._id, token);
+      const idToken = await getToken();
+      if (!idToken) throw new Error("AUTH_REQUIRED");
+      await deleteComment(comment._id, idToken);
       onCommentDelete(comment._id);
     } catch (err) {
       console.error("Failed to delete comment:", err);
@@ -143,9 +149,15 @@ export function CommentItem({
         <div className="flex items-start justify-between">
           <div className="flex items-end gap-3">
             <Link href={`/profile/${comment.author?.username || comment.author_id}`}>
-              <div className="w-8 h-8 rounded-none border border-white/10 bg-black overflow-hidden shrink-0 hover:border-accent transition-colors">
+              <div className="w-8 h-8 rounded-none border border-white/10 bg-black overflow-hidden shrink-0 hover:border-accent transition-colors relative">
                 {comment.author?.avatar_url ? (
-                  <img src={comment.author.avatar_url} alt={comment.author.username} className="w-full h-full object-cover" />
+                  <Image 
+                    src={comment.author.avatar_url} 
+                    alt={comment.author.username} 
+                    fill
+                    sizes="32px"
+                    className="object-cover" 
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-accent/50 font-black text-[10px] font-mono">
                     {(comment.author?.name || "?")[0].toUpperCase()}
@@ -153,7 +165,7 @@ export function CommentItem({
                 )}
               </div>
             </Link>
-            
+
             <div className="flex flex-col">
               <Link href={`/profile/${comment.author?.username || comment.author_id}`}>
                 <span className="text-[10px] sm:text-[11px] font-mono font-black text-white uppercase tracking-wider hover:text-accent transition-colors">
@@ -181,7 +193,7 @@ export function CommentItem({
                     isOpen={showMenu}
                     items={[
                       { 
-                        label: "TERMINATE_STRING", 
+                        label: "DELETE_COMMENT", 
                         icon: Trash2, 
                         onClick: handleDelete,
                         variant: "danger"
@@ -250,7 +262,7 @@ export function CommentItem({
               comment={reply}
               postId={postId}
               currentUserId={currentUserId}
-              token={token}
+              getToken={getToken}
               onCommentUpdate={(updatedReply) => {
                 const newReplies = comment.replies.map(r => r._id === updatedReply._id ? updatedReply : r);
                 onCommentUpdate({ ...comment, replies: newReplies });

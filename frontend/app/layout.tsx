@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/contexts/AuthContext";
+import QueryProvider from "@/providers/QueryProvider";
 import { NavbarWrapper } from "@/components/NavbarWrapper";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -43,9 +44,11 @@ export default function RootLayout({
         className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased bg-background text-foreground font-sans min-h-screen selection:bg-accent selection:text-black`}
       >
         <AuthProvider>
-          <NavbarWrapper>{children}</NavbarWrapper>
-          <Analytics />
-          <SpeedInsights />
+          <QueryProvider>
+            <NavbarWrapper>{children}</NavbarWrapper>
+            <Analytics />
+            <SpeedInsights />
+          </QueryProvider>
         </AuthProvider>
       </body>
     </html>

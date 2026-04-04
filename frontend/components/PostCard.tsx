@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { deletePost, toggleLike } from "@/lib/api/posts";
 import Popup from "@/components/Popup";
 import { MenuDropdown } from "./MenuDropdown";
@@ -28,7 +29,7 @@ interface PostCardProps {
   postId: string;
   authorId: string;
   currentUserId?: string | null;
-  token?: string | null;
+  getToken?: () => Promise<string | null>;
   onDelete?: (postId: string) => void;
   username: string;
   userHandle: string;
@@ -51,7 +52,7 @@ export function PostCard({
   postId,
   authorId,
   currentUserId,
-  token,
+  getToken,
   onDelete,
   username,
   userHandle,
@@ -122,11 +123,13 @@ export function PostCard({
   }, [comments]);
 
   const confirmDelete = async () => {
-    if (!token || isDeleting) return;
+    if (!getToken || isDeleting) return;
 
     try {
       setIsDeleting(true);
-      await deletePost(postId, token);
+      const idToken = await getToken();
+      if (!idToken) throw new Error("AUTH_REQUIRED");
+      await deletePost(postId, idToken);
       if (onDelete) onDelete(postId);
       setIsMenuOpen(false);
     } catch (err) {
@@ -174,7 +177,7 @@ export function PostCard({
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!token || isLiking) return;
+    if (!getToken || isLiking) return;
 
     // Optimistic UI update
     const previousLikes = currentLikes;
@@ -186,7 +189,9 @@ export function PostCard({
     setIsLiking(true);
 
     try {
-      const result = await toggleLike(postId, token);
+      const idToken = await getToken();
+      if (!idToken) throw new Error("AUTH_REQUIRED");
+      const result = await toggleLike(postId, idToken);
       if (result.success) {
         setIsLikedInternal(result.liked);
         setCurrentLikes(result.likes_count);
@@ -215,10 +220,12 @@ export function PostCard({
             className="w-12 h-12 border border-border bg-background overflow-hidden relative"
           >
             {avatarUrl ? (
-              <img
+              <Image
                 src={avatarUrl}
                 alt={username}
-                className="w-full h-full object-cover transition-all duration-500"
+                fill
+                sizes="48px"
+                className="object-cover transition-all duration-500"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-accent/5 text-accent font-mono text-sm font-bold">
@@ -483,17 +490,21 @@ export function PostCard({
               }`}
             >
               {m.type === "image" ? (
-                <img
+                <Image
                   src={m.url}
                   alt=""
-                  className="w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover sm:hover:scale-98 transition-transform duration-300"
                 />
               ) : (
                 <div className="w-full h-full bg-black flex items-center justify-center relative">
-                   <img
+                   <Image
                     src={m.url} 
                     alt=""
-                    className="w-full h-full object-cover opacity-50"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="object-cover opacity-50"
                   />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
@@ -582,7 +593,7 @@ export function PostCard({
 
         <CommentSection 
           postId={postId}
-          token={token}
+          getToken={getToken}
           currentUserId={currentUserId}
           isExpanded={isCommentsExpanded}
           onExpand={() => setIsCommentsExpanded(true)}
@@ -621,7 +632,7 @@ export function PostCard({
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-black/95 backdrop-blur-xl cursor-zoom-out"
+            className="absolute inset-0 bg-black/70 backdrop-blur-xl"
             onClick={() => setSelectedMedia(null)}
           />
           
@@ -630,26 +641,54 @@ export function PostCard({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             className="relative max-w-7xl max-h-screen z-10 flex items-center justify-center"
           >
-            <button
-              onClick={() => setSelectedMedia(null)}
-              className="absolute -top-12 right-0 text-white/50 hover:text-white transition-colors cursor-pointer p-2"
-            >
-              <X size={24} />
-            </button>
-            
             {selectedMedia.type === 'image' ? (
-              <img
-                src={selectedMedia.url}
-                className="max-w-full max-h-[85vh] object-contain border border-white/10 shadow-2xl"
-                alt="Enlarged signal media"
-              />
+              <div className="relative group">
+                <Image
+                  src={selectedMedia.url}
+                  width={1400}
+                  height={900}
+                  unoptimized
+                  className="w-auto h-auto max-w-full max-h-[90vh] border border-white/10 shadow-2xl object-contain"
+                  alt="Enlarged signal media"
+                  priority
+                />
+                <button
+                  onClick={() => setSelectedMedia(null)}
+                  className="absolute top-0 -right-10 text-white/50 hover:text-white transition-colors cursor-pointer p-1 bg-white/10 hidden sm:block"
+                  title="Close Preview"
+                >
+                  <X size={24} />
+                </button>
+                <button
+                  onClick={() => setSelectedMedia(null)}
+                  className="absolute top-2 right-2 text-white/50 hover:text-white bg-black/40 backdrop-blur-md p-2 sm:hidden z-20"
+                >
+                  <X size={20} />
+                </button>
+
+              </div>
             ) : (
-              <video
-                src={selectedMedia.url}
-                className="max-w-full max-h-[85vh] border border-white/10 shadow-2xl"
-                controls
-                autoPlay
-              />
+              <div className="relative group">
+                <video
+                  src={selectedMedia.url}
+                  className="max-w-full max-h-[90vh] border border-white/10 shadow-2xl"
+                  controls
+                  autoPlay
+                />
+                <button
+                  onClick={() => setSelectedMedia(null)}
+                  className="absolute top-0 -right-10 text-white/50 hover:text-white transition-colors p-1 bg-white/10 cursor-pointer hidden sm:block"
+                  title="Close Preview"
+                >
+                  <X size={24} />
+                </button>
+                <button
+                  onClick={() => setSelectedMedia(null)}
+                  className="absolute top-2 right-2 text-white/50 hover:text-white bg-black/40 backdrop-blur-md p-2 sm:hidden z-20"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             )}
           </motion.div>
         </div>,

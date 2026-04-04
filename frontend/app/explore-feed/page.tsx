@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { PostCard } from "@/components/PostCard";
+import { PostCardSkeleton } from "@/components/PostCardSkeleton";
 import { Button } from "@/components/Button";
 import { getExploreFeed } from "@/lib/api/posts";
 import { FeedLayout } from "@/components/FeedLayout";
@@ -23,13 +24,13 @@ export default function FeedPage() {
     loading, 
     loadingMore,
     hasMore,
-    token, 
+    getToken, 
     authLoading, 
     user, 
     errorToast, 
     setErrorToast,
     loadMore
-  } = useFeed(getExploreFeed);
+  } = useFeed("exploreFeed", getExploreFeed);
 
   const observerRef = useIntersectionObserver(loadMore, [hasMore, loadingMore, loading]);
 
@@ -80,9 +81,10 @@ export default function FeedPage() {
         }
       >
         {loading ? (
-          <div className="p-20 flex flex-col items-center justify-center gap-4 bg-black">
-            <Loader2 className="w-8 h-8 text-accent animate-spin" />
-            <span className="text-[10px] font-mono text-accent uppercase tracking-widest">Intercepting_Signals...</span>
+          <div className="flex flex-col gap-px bg-border">
+            <PostCardSkeleton />
+            <PostCardSkeleton />
+            <PostCardSkeleton />
           </div>
         ) : posts.length > 0 ? (
           <>
@@ -93,7 +95,7 @@ export default function FeedPage() {
                   postId={post._id}
                   authorId={post.author_id}
                   currentUserId={user?.uid}
-                  token={token}
+                  getToken={getToken}
                   onDelete={(id) => setPosts(posts.filter(p => p._id !== id))}
                   username={post.author?.name || "Anonymous"}
                   userHandle={post.author?.username || "unknown"}
@@ -127,21 +129,10 @@ export default function FeedPage() {
             </div>
           </>
         ) : (
-          <div className="p-20 text-center flex flex-col items-center gap-4 bg-black">
-            <div className="w-12 h-12 border border-border flex items-center justify-center">
-              <Cpu className="w-6 h-6 text-text-secondary" />
-            </div>
-            <div className="text-[10px] font-mono text-text-secondary uppercase tracking-[0.2em]">
-              NO_SIGNALS_DETECTED_IN_THIS_SECTOR
-            </div>
-            <Button 
-              variant="secondary" 
-              size="sm" 
-              onClick={() => router.push("/posts/create")}
-              className="mt-2"
-            >
-              INITIALIZE_SIGNAL
-            </Button>
+           <div className="px-6 py-16 sm:p-20 text-center bg-black flex flex-col items-center justify-center">
+            <p className="text-text-secondary font-mono text-xs sm:text-sm uppercase tracking-widest italic">
+              [ NO_SIGNALS_FOUND_IN_THIS_SECTOR ]
+            </p>
           </div>
         )}
       </FeedLayout>

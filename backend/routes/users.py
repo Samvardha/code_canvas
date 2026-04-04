@@ -299,6 +299,9 @@ async def get_github_profile(
             repos_only=repos_only
         )
 
+        if repos_only:
+            return github_data
+
         return {
             "connected": True,
             "data": github_data,

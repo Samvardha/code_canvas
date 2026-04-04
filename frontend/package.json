@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.96.2",
+    "@tanstack/react-query-devtools": "^5.96.2",
     "@vercel/analytics": "^1.4.0",
     "@vercel/speed-insights": "^2.0.0",
     "date-fns": "^4.1.0",
