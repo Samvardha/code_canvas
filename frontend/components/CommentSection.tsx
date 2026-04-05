@@ -41,6 +41,11 @@ export function CommentSection({
   const [isSyncing, setIsSyncing] = useState(false);
   const { user, userProfile } = useAuth();
 
+  const countRecursive = (comment: Comment): number => {
+    if (!comment.replies || comment.replies.length === 0) return 0;
+    return comment.replies.length + comment.replies.reduce((acc, r) => acc + countRecursive(r), 0);
+  };
+
   const fetchComments = useCallback(async () => {
     try {
       setIsSyncing(true);
@@ -49,7 +54,7 @@ export function CommentSection({
       setComments(data);
 
       if (onCommentsListSync) {
-        const totalComments = data.length + data.reduce((acc, c) => acc + (c.replies?.length || 0), 0);
+        const totalComments = data.reduce((acc, c) => acc + 1 + countRecursive(c), 0);
         onCommentsListSync(totalComments);
       }
     } catch (err) {
@@ -105,9 +110,9 @@ export function CommentSection({
 
   const handleDelete = (id: string) => {
     const deleted = comments.find(c => c._id === id);
-    const replyCount = deleted?.replies?.length || 0;
+    const totalDeduction = 1 + (deleted ? countRecursive(deleted) : 0);
     setComments(prev => prev.filter(c => c._id !== id));
-    if (onCommentsCountChange) onCommentsCountChange(-(1 + replyCount));
+    if (onCommentsCountChange) onCommentsCountChange(-totalDeduction);
     setErrorToast({ isVisible: true, message: "COMMENT_DELETED" });
   };
 
@@ -141,6 +146,7 @@ export function CommentSection({
                   getToken={getToken}
                   onCommentUpdate={handleUpdate}
                   onCommentDelete={handleDelete}
+                  onCommentsCountChange={onCommentsCountChange}
                 />
               ))}
             </div>
