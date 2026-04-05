@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/contexts/AuthContext";
 import QueryProvider from "@/providers/QueryProvider";
 import { NavbarWrapper } from "@/components/NavbarWrapper";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
 const inter = Inter({
@@ -24,7 +25,6 @@ export const metadata: Metadata = {
   title: "Tech Connect - Developer Network",
   description:
     "A developer collaboration network where you can find collaborators, share projects, and build together.",
-  manifest: "/manifest.json",
 };
 
 export const viewport = {
@@ -50,6 +50,7 @@ export default function RootLayout({
             <NavbarWrapper>{children}</NavbarWrapper>
           </QueryProvider>
         </AuthProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

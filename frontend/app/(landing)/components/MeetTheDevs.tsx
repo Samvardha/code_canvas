@@ -12,21 +12,21 @@ export default function MeetTheDevs() {
       github: "https://github.com/Samvardha",
       email: "mailto:samvardha.khandwe@gmail.com",
       website: "https://whosamvardha.in",
-      avatar: "/Samvardha.jpg",
+      avatar: "/images/Samvardha.jpg",
     },
     {
       name: "Shantanu Verma",
       role: "CORE ENGINEER",
       github: "https://github.com/ShantanuV2709",
       email: "mailto:shantanuverma2709@gmail.com",
-      avatar: "/Shantanu.jpeg",
+      avatar: "/images/Shantanu.jpeg",
     },
     {
       name: "Kushagra Joshi",
       role: "CORE ENGINEER",
       github: "https://github.com/joshikushagra",
       email: "mailto:kushofficial2004@gmail.com",
-      avatar: "/Kushagra.jpeg",
+      avatar: "/images/Kushagra.jpeg",
     },
   ];
 

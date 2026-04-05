@@ -79,6 +79,7 @@ export default function Footer() {
                 src="/icons/icon-transparent.png"
                 alt="Tech Connect Logo"
                 fill
+                sizes="(max-width: 640px) 64px, 152px"
                 className="object-contain"
               />
             </div>
