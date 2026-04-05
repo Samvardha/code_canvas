@@ -368,7 +368,7 @@ export function PostCard({
                 <div className="p-2 bg-black/20 rounded-sm">
                   <Github size={16} className="text-white/70" />
                 </div>
-                <div className="flex flex-col">
+                <div className="flex flex-col min-w-0">
                   <span className="text-[9px] font-mono text-white/40 uppercase tracking-widest leading-none mb-1">REPOSITORY_SOURCE</span>
                   <span className="text-[11px] font-mono font-bold text-white uppercase truncate">
                     {github.repo_owner}/{github.repo_name}
@@ -389,7 +389,7 @@ export function PostCard({
                 <div className="p-2 bg-black/20 rounded-sm">
                   <LinkIcon size={16} className="text-white/70" />
                 </div>
-                <div className="flex flex-col">
+                <div className="flex flex-col min-w-0">
                   <span className="text-[9px] font-mono text-white/40 uppercase tracking-widest leading-none mb-1">EXTERNAL_LINK</span>
                   <span className="text-[11px] font-mono font-bold text-white uppercase truncate">
                     {link.title || link.url}

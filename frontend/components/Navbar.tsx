@@ -354,6 +354,7 @@ export function Navbar() {
                                   src={resultUser.avatar_url}
                                   alt={resultUser.username}
                                   fill
+                                  sizes="40px"
                                   className="object-cover"
                                 />
                               ) : (
@@ -441,6 +442,7 @@ export function Navbar() {
                       src={profile.avatar_url}
                       alt="avatar"
                       fill
+                      sizes="40px"
                       className="object-cover"
                     />
                   ) : (
@@ -503,6 +505,7 @@ export function Navbar() {
                       src={profile.avatar_url}
                       alt="avatar"
                       fill
+                      sizes="28px"
                       className="object-cover"
                     />
                   ) : (
@@ -622,6 +625,7 @@ export function Navbar() {
                                     src={resultUser.avatar_url}
                                     alt={resultUser.username}
                                     fill
+                                    sizes="32px"
                                     className="object-cover"
                                   />
                                 ) : (
