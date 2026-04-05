@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { 
   useQuery, 
   useInfiniteQuery, 
@@ -30,7 +30,7 @@ export function useNotifications() {
   const { getSocket } = useSocket();
   const queryClient = useQueryClient();
   const socketListenerAttached = useRef(false);
-
+  const [toast, setToast] = useState({ isVisible: false, message: "" });
   const userId = user?.uid;
   const NOTIF_LIST_KEY = useMemo(() => ["notifications", "list", userId], [userId]);
   const UNREAD_COUNT_KEY = useMemo(() => ["notifications", "unread-count", userId], [userId]);
@@ -55,6 +55,7 @@ export function useNotifications() {
     isFetchingNextPage: loadingMore,
     fetchNextPage,
     hasNextPage,
+    isFetching: refreshing,
   } = useInfiniteQuery<NotificationPage>({
     queryKey: NOTIF_LIST_KEY,
     queryFn: async ({ pageParam }) => {
@@ -109,6 +110,7 @@ export function useNotifications() {
       const isGhost = err?.message?.toLowerCase().includes("not found");
       
       if (isGhost) {
+        setToast({ isVisible: true, message: "NOTIFICATION_NOT_FOUND" });
         queryClient.setQueryData<InfiniteData<NotificationPage>>(NOTIF_LIST_KEY, (old) => {
           if (!old) return old;
           return {
@@ -137,6 +139,9 @@ export function useNotifications() {
       if (!user) throw new Error("AUTH_REQUIRED");
       const token = await user.getIdToken();
       return markAllNotificationsRead(token);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: NOTIF_LIST_KEY });
     },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: NOTIF_LIST_KEY });
@@ -235,11 +240,21 @@ export function useNotifications() {
     fetchNotifications: (reset: boolean = true) => {
       if (reset) {
         queryClient.invalidateQueries({ queryKey: NOTIF_LIST_KEY });
+        queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_KEY });
       } else {
         fetchNextPage();
       }
     },
-    markAsRead: (id: string) => markAsReadMutation.mutate(id),
+    markAsRead: async (id: string) => {
+      try {
+        await markAsReadMutation.mutateAsync(id);
+      } catch (err) {
+        throw err;
+      }
+    },
     markAllRead: () => markAllReadMutation.mutate(),
+    toast,
+    hideToast: () => setToast({ ...toast, isVisible: false }),
+    refreshing,
   };
 }

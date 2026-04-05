@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from bson import ObjectId
 from services.user import UserService
 from utils.database import get_notifications_collection
@@ -37,7 +37,8 @@ class NotificationService:
         recipient_id: str,
         sender_id: str,
         type: str,
-        entity: Dict[str, Any]
+        entity: Dict[str, Any],
+        comment_id: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Create a notification, persist it to the database, and emit it in real-time.
@@ -63,7 +64,8 @@ class NotificationService:
             "type": type,
             "entity": {
                 "id": str(entity.get("id", "")),
-                "type": entity.get("type", "")
+                "type": entity.get("type", ""),
+                "comment_id": str(comment_id) if comment_id else None
             },
             "is_read": False,
             "created_at": datetime.utcnow()
@@ -77,19 +79,19 @@ class NotificationService:
 
             # 3. Real-time emission to the recipient's Socket.IO room
             if _sio:
-                socket_payload = dict(notification_doc)
-                dt = socket_payload.get("created_at")
+                socket_payload_serializable: Dict[str, Any] = dict(notification_doc)
+                dt = socket_payload_serializable.get("created_at")
                 if isinstance(dt, datetime):
-                    socket_payload["created_at"] = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                    socket_payload_serializable["created_at"] = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
                 
                 # Fetch dynamically for socket payload
                 profiles = await UserService.fetch_chat_profiles([sender_id])
                 if profiles:
-                    socket_payload["sender_username"] = profiles[0].get("username", sender_id)
+                    socket_payload_serializable["sender_username"] = profiles[0].get("username", sender_id)
                 else:
-                    socket_payload["sender_username"] = sender_id
+                    socket_payload_serializable["sender_username"] = sender_id
                 
-                await _sio.emit("new_notification", socket_payload, room=recipient_id)
+                await _sio.emit("new_notification", socket_payload_serializable, room=recipient_id)
                 logger.debug(f"Notification emitted to room: {recipient_id}")
 
             return notification_doc
@@ -118,7 +120,7 @@ class NotificationService:
         notifications_col = await get_notifications_collection()
 
         # 1. Build the query with optional cursor-based pagination
-        query = {"recipient_id": recipient_id}
+        query: Dict[str, Any] = {"recipient_id": recipient_id}
         if cursor:
             try:
                 cursor_date = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
@@ -226,20 +228,37 @@ class NotificationService:
     # [ CLEANUP OPERATIONS ] ───────────────────────────────────────────────────
 
     @staticmethod
-    async def delete_notification(sender_id: str, recipient_id: str, notif_type: str, entity_id: str) -> None:
+    async def delete_notification(sender_id: str, recipient_id: str, notif_type: str, entity_id: str, comment_id: Optional[str] = None) -> None:
         """
         Retract a specific notification (e.g. when un-liking a post).
         """
         try:
             notifications_col = await get_notifications_collection()
-            await notifications_col.delete_many({
+            query = {
                 "sender_id": sender_id,
                 "recipient_id": recipient_id,
                 "type": notif_type,
                 "entity.id": str(entity_id)
-            })
+            }
+            if comment_id:
+                query["entity.comment_id"] = str(comment_id)
+                
+            await notifications_col.delete_many(query)
         except Exception:
             logger.error(f"Failed to retract notification: {notif_type}", exc_info=True)
+
+    @staticmethod
+    async def delete_all_for_comments(comment_ids: List[str]) -> None:
+        """
+        Purge all notifications tied to a specific set of comments (likes, replies, etc).
+        """
+        try:
+            notifications_col = await get_notifications_collection()
+            await notifications_col.delete_many({
+                "entity.comment_id": {"$in": [str(cid) for cid in comment_ids]}
+            })
+        except Exception:
+            logger.error("Failed to purge notifications for comment list", exc_info=True)
 
     @staticmethod
     async def delete_all_for_entity(entity_id: str, entity_type: str) -> None:

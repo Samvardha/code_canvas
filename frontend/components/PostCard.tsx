@@ -47,6 +47,7 @@ interface PostCardProps {
   collabMeta?: any;
   eventMeta?: any;
   isLiked?: boolean;
+  isSinglePage?: boolean;
 }
 
 export function PostCard({
@@ -70,6 +71,7 @@ export function PostCard({
   collabMeta,
   eventMeta,
   isLiked = false,
+  isSinglePage = false,
 }: PostCardProps) {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -80,7 +82,7 @@ export function PostCard({
   
   const [currentLikes, setCurrentLikes] = useState(likes);
   const [currentCommentsCount, setCurrentCommentsCount] = useState(comments);
-  const [isCommentsExpanded, setIsCommentsExpanded] = useState(false);
+  const [isCommentsExpanded, setIsCommentsExpanded] = useState(isSinglePage);
   const [isLikedInternal, setIsLikedInternal] = useState(isLiked);
   const [isLiking, setIsLiking] = useState(false);
   const [direction, setDirection] = useState(1);

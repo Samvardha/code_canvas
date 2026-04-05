@@ -132,6 +132,7 @@ export default function SinglePostPage() {
               collabMeta={post.collab_meta}
               eventMeta={post.event_meta}
               isLiked={post.is_liked}
+              isSinglePage={true}
             />
           </div>
         ) : (

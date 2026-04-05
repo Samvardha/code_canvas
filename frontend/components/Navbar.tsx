@@ -245,7 +245,7 @@ export function Navbar() {
             </span>
           </Link>
 
-          <div className="w-px h-10 bg-border hidden lg:block" />
+          <div className="w-[0.5px] h-10 -mx-2 bg-border hidden lg:block" />
 
           <div className="hidden lg:flex items-center gap-2">
             {navItems.map((item) => (
@@ -253,7 +253,7 @@ export function Navbar() {
                 key={item.href}
                 href={item.href}
                 className={`
-                  flex items-center gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-widest transition-colors duration-200
+                  flex items-center px-3 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-200
                   ${
                     pathname === item.href
                       ? "text-accent border-b-2 border-accent"
@@ -267,7 +267,7 @@ export function Navbar() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2.5 sm:gap-6 flex-1 justify-end">
+          <div className="flex items-center gap-2.5 sm:gap-4 flex-1 justify-end">
             <BadgeIcon
               icon={Bell}
               onClick={() => {
@@ -287,7 +287,7 @@ export function Navbar() {
 
             {/* Desktop Search */}
             <div
-              className="relative w-64 lg:w-68 hidden md:block group transition-all duration-300 ml-2"
+              className="relative w-46 lg:w-54 hidden lg:block group transition-all duration-300 ml-2"
               ref={searchContainerRef}
             >
               <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
@@ -405,7 +405,7 @@ export function Navbar() {
             {/* Mobile Search Icon - shown on small screens */}
             <button
               onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="md:hidden p-1"
+              className="lg:hidden p-1"
             >
               <Search className="w-5 h-5 text-white" />
             </button>
@@ -451,10 +451,6 @@ export function Navbar() {
                     </div>
                   )}
                 </div>
-
-                <ChevronDown
-                  className={`w-4 h-4 text-text-secondary transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}
-                />
               </button>
 
               <MenuDropdown
@@ -562,7 +558,7 @@ export function Navbar() {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden fixed top-20 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b border-border"
+            className="lg:hidden fixed top-20 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b border-border"
           >
             <div className="max-w-360 mx-auto px-4 py-4">
               <div className="relative w-full group" ref={searchContainerRef}>

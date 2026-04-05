@@ -10,12 +10,14 @@ import {
   UserCheck,
   Loader2,
   CheckCheck,
+  RefreshCw,
 } from "lucide-react";
 import SideDrawer from "./SideDrawer";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/hooks/useNotifications";
 import { Notification } from "@/lib/api/notifications";
 import { formatDistanceToNow } from "date-fns";
+import Toast from "./Toast";
 
 // [ HELPERS ] ─────────────────────────────────────────────────────────────────
 
@@ -64,7 +66,7 @@ function getRelativeTime(dateStr: string): string {
 }
 
 function getNavigationPath(notification: Notification): string | null {
-  const { type, entity, sender_id, sender_username } = notification;
+  const { type, entity, sender_username } = notification;
 
   switch (type) {
     case "like":
@@ -154,15 +156,21 @@ export default function NotificationDrawer({
     fetchNotifications,
     markAsRead,
     markAllRead,
+    toast,
+    hideToast,
+    refreshing,
   } = useNotifications();
 
-  const handleNavigate = (path: string, notification: Notification) => {
-    if (!notification.is_read) {
-      markAsRead(notification._id);
-    }
-    onClose();
-    router.push(path);
-  };
+  const handleNavigate = async (path: string, notification: Notification) => {
+    try {
+      if (!notification.is_read) {
+        await markAsRead(notification._id);
+      }
+      onClose();
+      router.push(path);
+     } catch (err) {
+     }
+   };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -188,18 +196,30 @@ export default function NotificationDrawer({
               </div>
 
               <div className="flex items-center gap-1">
+                <button
+                  onClick={() => fetchNotifications(true)}
+                  disabled={refreshing}
+                  className="p-1.5 md:hover:bg-white/5 transition-colors group/mark cursor-pointer"
+                  title="Refresh notifications"
+                >
+                  <RefreshCw 
+                    className={`w-4 h-4 text-text-secondary md:group-hover/mark:text-accent transition-all duration-500 ${
+                      refreshing ? "animate-spin text-accent" : ""
+                    }`} 
+                  />
+                </button>
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllRead}
-                    className="p-1.5 hover:bg-white/5 transition-colors group/mark cursor-pointer"
+                    className="p-1.5 md:hover:bg-white/5 transition-colors group/mark cursor-pointer"
                     title="Mark all as read"
                   >
-                    <CheckCheck className="w-4 h-4 text-text-secondary group-hover/mark:text-accent transition-colors" />
+                    <CheckCheck className="w-4 h-4 text-text-secondary md:group-hover/mark:text-accent transition-colors" />
                   </button>
                 )}
                 <button
                   onClick={onClose}
-                  className="p-1.5 hover:bg-white/5 transition-colors cursor-pointer"
+                  className="p-1.5 md:hover:bg-white/5 transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4 text-text-secondary" />
                 </button>
@@ -246,6 +266,12 @@ export default function NotificationDrawer({
                 </div>
               )}
             </div>
+
+            <Toast 
+              isVisible={toast.isVisible}
+              message={toast.message}
+              onClose={hideToast}
+            />
     </SideDrawer>
   );
 }

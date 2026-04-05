@@ -74,7 +74,8 @@ class CommentService:
                     recipient_id=rec,
                     sender_id=author_id,
                     type="comment_reply" if parent_comment_id and rec == parent.get("author_id") else "comment",
-                    entity={"id": str(post_id), "type": "post"}
+                    entity={"id": str(post_id), "type": "post"},
+                    comment_id=str(comment_doc["_id"])
                 )
 
             return comment_doc
@@ -134,6 +135,9 @@ class CommentService:
                 {"_id": comment["post_id"]},
                 {"$inc": {"stats.comments_count": -len(all_ids_to_delete)}}
             )
+
+            # 6. Purge all ghost notifications tied to this thread
+            await NotificationService.delete_all_for_comments(all_ids_to_delete)
 
             return True
 
@@ -258,7 +262,8 @@ class CommentService:
                         sender_id=user_id,
                         recipient_id=result.get("author_id", ""),
                         notif_type="comment_like",
-                        entity_id=str(result.get("post_id", ""))
+                        entity_id=str(result.get("post_id", "")),
+                        comment_id=comment_id
                     )
 
                 return {
@@ -284,7 +289,8 @@ class CommentService:
                         recipient_id=result.get("author_id"),
                         sender_id=user_id,
                         type="comment_like",
-                        entity={"id": str(result.get("post_id")), "type": "post"}
+                        entity={"id": str(result.get("post_id")), "type": "post"},
+                        comment_id=comment_id
                     )
 
                 return {
