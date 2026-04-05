@@ -45,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark scroll-smooth">
+    <html lang="en" className="dark" data-scroll-behavior="smooth">
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>

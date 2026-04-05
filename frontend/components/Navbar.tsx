@@ -51,7 +51,7 @@ export function Navbar() {
   const isChatOpen = searchParams.get("chat") === "true";
   const openChatWithUserId = searchParams.get("uid");
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const isNotificationsOpen = searchParams.get("notifications") === "true";
   const { unreadCount: notifUnreadCount } = useNotifications();
 
   const desktopDropdownRef = useRef<HTMLDivElement>(null);
@@ -184,6 +184,7 @@ export function Navbar() {
       const params = new URLSearchParams(searchParams.toString());
       params.set("chat", "true");
       params.set("uid", uid);
+      params.delete("notifications");
       router.push(`${pathname}?${params.toString()}`, { scroll: false });
     };
     return () => {
@@ -195,10 +196,23 @@ export function Navbar() {
     const params = new URLSearchParams(searchParams.toString());
     if (open) {
       params.set("chat", "true");
+      params.delete("notifications");
       params.delete("uid");
     } else {
       params.delete("chat");
       params.delete("uid");
+    }
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const setIsNotificationsOpen = (open: boolean) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (open) {
+      params.set("notifications", "true");
+      params.delete("chat");
+      params.delete("uid");
+    } else {
+      params.delete("notifications");
     }
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
@@ -258,7 +272,6 @@ export function Navbar() {
               icon={Bell}
               onClick={() => {
                 setIsNotificationsOpen(true);
-                setIsChatOpen(false);
               }}
               unreadCount={notifUnreadCount}
               title="Notifications"
@@ -267,7 +280,6 @@ export function Navbar() {
               icon={MessageSquare}
               onClick={() => {
                 setIsChatOpen(true);
-                setIsNotificationsOpen(false);
               }}
               unreadCount={chatUnreadCount}
               title="Messages"
@@ -342,6 +354,7 @@ export function Navbar() {
                                   src={resultUser.avatar_url}
                                   alt={resultUser.username}
                                   fill
+                                  sizes="40px"
                                   className="object-cover"
                                 />
                               ) : (
@@ -429,6 +442,7 @@ export function Navbar() {
                       src={profile.avatar_url}
                       alt="avatar"
                       fill
+                      sizes="40px"
                       className="object-cover"
                     />
                   ) : (
@@ -491,6 +505,7 @@ export function Navbar() {
                       src={profile.avatar_url}
                       alt="avatar"
                       fill
+                      sizes="28px"
                       className="object-cover"
                     />
                   ) : (
@@ -610,6 +625,7 @@ export function Navbar() {
                                     src={resultUser.avatar_url}
                                     alt={resultUser.username}
                                     fill
+                                    sizes="32px"
                                     className="object-cover"
                                   />
                                 ) : (

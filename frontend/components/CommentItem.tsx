@@ -25,7 +25,13 @@ interface CommentItemProps {
   postId: string;
   onCommentUpdate: (updatedComment: Comment) => void;
   onCommentDelete: (commentId: string) => void;
+  onCommentsCountChange?: (delta: number) => void;
 }
+
+const countRecursive = (comment: Comment): number => {
+  if (!comment.replies || comment.replies.length === 0) return 0;
+  return comment.replies.length + comment.replies.reduce((acc, r) => acc + countRecursive(r), 0);
+};
 
 export function CommentItem({ 
   comment, 
@@ -33,7 +39,8 @@ export function CommentItem({
   getToken, 
   postId,
   onCommentUpdate, 
-  onCommentDelete 
+  onCommentDelete,
+  onCommentsCountChange
 }: CommentItemProps) {
   const [isLiking, setIsLiking] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
@@ -118,6 +125,8 @@ export function CommentItem({
         ...comment,
         replies: [...(comment.replies || []), newReply]
       });
+      if (onCommentsCountChange) onCommentsCountChange(1);
+      setErrorToast({ isVisible: true, message: "COMMENT_POSTED" });
       setIsReplying(false);
     } catch (err) {
       console.error("Failed to send reply:", err);
@@ -263,13 +272,18 @@ export function CommentItem({
               postId={postId}
               currentUserId={currentUserId}
               getToken={getToken}
+              onCommentsCountChange={onCommentsCountChange}
               onCommentUpdate={(updatedReply) => {
                 const newReplies = comment.replies.map(r => r._id === updatedReply._id ? updatedReply : r);
                 onCommentUpdate({ ...comment, replies: newReplies });
               }}
               onCommentDelete={(replyId) => {
+                const deletedReply = comment.replies.find(r => r._id === replyId);
+                const totalDeduction = 1 + (deletedReply ? countRecursive(deletedReply) : 0);
                 const newReplies = comment.replies.filter(r => r._id !== replyId);
                 onCommentUpdate({ ...comment, replies: newReplies });
+                if (onCommentsCountChange) onCommentsCountChange(-totalDeduction);
+                setErrorToast({ isVisible: true, message: "COMMENT_DELETED" });
               }}
             />
           ))}
