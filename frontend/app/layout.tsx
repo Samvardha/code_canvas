@@ -25,7 +25,10 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tech Connect - Developer Network",
+  title: {
+    template: "%s | Tech Connect",
+    default: "Tech Connect - Developer Network",
+  },
   description:
     "A developer collaboration network where you can find collaborators, share projects, and build together.",
   robots: {
