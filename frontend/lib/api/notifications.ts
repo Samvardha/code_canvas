@@ -5,6 +5,7 @@ import { baseUrl, getHeaders, handleResponse } from "./client";
 export type NotificationEntity = {
   id: string;
   type: "post" | "user" | "comment" | "conversation";
+  comment_id?: string;
 };
 
 export type Notification = {
