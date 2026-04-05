@@ -5,6 +5,7 @@ import QueryProvider from "@/providers/QueryProvider";
 import { NavbarWrapper } from "@/components/NavbarWrapper";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
 const inter = Inter({
@@ -59,6 +60,7 @@ export default function RootLayout({
             <SpeedInsights />
           </QueryProvider>
         </AuthProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

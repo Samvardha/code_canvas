@@ -20,6 +20,7 @@ export default function LandingNavbar() {
               src="/icons/icon-transparent.png"
               alt="Tech Connect Logo"
               fill
+              sizes="48px"
               className="object-contain"
             />
           </div>
