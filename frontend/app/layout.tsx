@@ -6,6 +6,7 @@ import { NavbarWrapper } from "@/components/NavbarWrapper";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -32,7 +33,6 @@ export const metadata: Metadata = {
     follow: false,
     nocache: true,
   },
-  manifest: "/manifest.json",
 };
 
 export const viewport = {
@@ -47,7 +47,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark scroll-smooth">
       <head>
-        <meta name="theme-color" content="#000000" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
       <body
@@ -56,12 +55,13 @@ export default function RootLayout({
         <AuthProvider>
           <QueryProvider>
             <NavbarWrapper>{children}</NavbarWrapper>
-            <Analytics />
-            <SpeedInsights />
           </QueryProvider>
         </AuthProvider>
+        <Analytics />
+        <SpeedInsights />
         <ServiceWorkerRegister />
       </body>
+      <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID!} />
     </html>
   );
 }
