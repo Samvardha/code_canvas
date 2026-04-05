@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 
 export default function Footer() {
@@ -71,11 +72,20 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="pt-24 pb-8 flex flex-col items-center justify-center">
-          {/* Using text outline and white fill for clarity rather than only transparent stroke */}
-          <h2 className="text-[12vw] sm:text-[10vw] leading-none font-black font-(family-name:--font-space-grotesk) tracking-tighter uppercase text-white cursor-default select-none pb-4 relative">
-            TECH CONNECT
-          </h2>
+        <div className="pt-12 sm:pt-24 flex flex-col items-center justify-center">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 pb-2 sm:pb-6">
+            <div className="relative w-16 h-16 sm:w-38 sm:h-38">
+              <Image
+                src="/icons/icon-transparent.png"
+                alt="Tech Connect Logo"
+                fill
+                className="object-contain"
+              />
+            </div>
+            <h2 className="text-[8vw] sm:text-[6vw] leading-none font-black font-(family-name:--font-space-grotesk) tracking-tighter uppercase text-white cursor-default select-none">
+              TECH CONNECT
+            </h2>
+          </div>
           <div className="flex w-full flex-col sm:flex-row justify-between items-center mt-8 font-mono text-xs uppercase text-text-secondary border-t border-border pt-8 font-bold gap-4">
             <span>
               © {new Date().getFullYear()} TECH CONNECT INC.

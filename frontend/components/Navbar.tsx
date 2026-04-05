@@ -217,10 +217,17 @@ export function Navbar() {
         <div className="max-w-360 mx-auto h-20 px-4 sm:px-6 flex items-center justify-between gap-4 sm:gap-8">
           <Link
             href="/explore-feed"
-            className="flex items-center gap-2 sm:gap-3 group shrink-0"
+            className="flex items-center shrink-0 gap-1"
           >
-            <div className="w-3 h-3 sm:w-4 sm:h-4 bg-accent rotate-45 group-hover:scale-110 transition-transform duration-300" />
-            <span className="text-sm sm:text-xl font-black tracking-tighter uppercase font-(family-name:--font-space-grotesk) mt-1">
+            <div className="relative w-10 h-10 sm:w-12 sm:h-12">
+              <Image
+                src="/icons/icon-transparent.png"
+                alt="Tech Connect Logo"
+                fill
+                className="object-contain"
+              />
+            </div>
+            <span className="text-sm sm:text-xl font-black tracking-tighter uppercase font-(family-name:--font-space-grotesk)">
               TECH CONNECT
             </span>
           </Link>

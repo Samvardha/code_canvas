@@ -24,6 +24,11 @@ export const metadata: Metadata = {
   title: "Tech Connect - Developer Network",
   description:
     "A developer collaboration network where you can find collaborators, share projects, and build together.",
+  manifest: "/manifest.json",
+};
+
+export const viewport = {
+  themeColor: "#000000",
 };
 
 export default function RootLayout({
@@ -33,6 +38,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark scroll-smooth">
+      <head>
+        <meta name="theme-color" content="#000000" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+      </head>
       <body
         className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased bg-background text-foreground font-sans min-h-screen selection:bg-accent selection:text-black`}
       >
