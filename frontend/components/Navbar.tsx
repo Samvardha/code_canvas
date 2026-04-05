@@ -32,7 +32,6 @@ import dynamic from "next/dynamic";
 const ChatDrawer = dynamic(() => import("./ChatDrawer"), { ssr: false });
 const NotificationPanel = dynamic(() => import("./NotificationDrawer"), { ssr: false });
 
-
 export function Navbar() {
   const { user, userProfile, logout } = useAuth();
   const pathname = usePathname();
@@ -203,7 +202,6 @@ export function Navbar() {
     }
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
-
 
   const navItems = [
     { label: "Explore", href: "/explore-feed", icon: Compass },
@@ -501,7 +499,6 @@ export function Navbar() {
                     </div>
                   )}
                 </div>
-
               </button>
 
               <MenuDropdown

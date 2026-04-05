@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     description:
       "A developer collaboration network where you can find collaborators, share projects, and build together.",
-    start_url: "/explore-feed?utm_source=pwa",
+    start_url: "/explore-feed",
     display: "standalone",
     background_color: "#000000",
     theme_color: "#000000",
