@@ -9,6 +9,7 @@ A full-stack developer collaboration platform built with **Next.js 16** and **Fa
 - **Authentication** — Firebase Auth (Google, GitHub, Email/Password) with secure token verification via the Admin SDK
 - **Real-Time Chat** — Socket.IO powered direct messaging with real-time **Seen Status** tracking, typing indicators, and historical read-only modes
 - **Real-Time Notifications** — Instant bell-icon alerts for Likes, Comments, and Peer actions, powered by dedicated WebSocket signals
+- **Web Push Notifications** — System-level push notifications using Firebase Cloud Messaging (FCM) and Service Workers, built with dynamic configuration loading and iOS Safari-compatible user-gesture subscription triggers
 - **Deep-Linked Routing** — Smart navigation from notifications to specific posts (`/posts/[id]`) or profiles (`/profile/@username`)
 - **User Profiles** — Onboarding flow, refined avatar uploads (preview & manual confirm via Cloudinary), skills, bio, and progress tracking
 - **GitHub Integration** — OAuth linking, pinned repos, language stats, active feed, AES-encrypted token storage with system fallback
@@ -284,6 +285,12 @@ npm run dev
 - **Frontend Hook** — `useNotifications.ts` manages the TanStack cache, optimistic rollbacks, unread counts, and deduplicated socket subscriptions.
 - **Visual Feedback** — Monospace alert styling with timestamp formatting, responsive routing, and high-contrast "seen" states.
 
+### FCM Push Notifications
+- **System-Level Alerts** — Real-time background notifications delivered directly to the user's OS via Firebase Cloud Messaging (FCM).
+- **Dynamic SW Configuration** — The Service Worker is initialized with parameters passed via URL query parameters, ensuring no hardcoded credentials exist in Git and enabling environment-specific configs (dev/prod).
+- **iOS Safari Compatibility** — Designed around WebKit security constraints. Users are prompted with a premium, animated glassmorphic banner. Tapping the "Enable" button provides the required explicit user gesture for `Notification.requestPermission()`.
+- **Token Registration** — Devices and FCM tokens are registered atomically in the `user_devices` collection associated with the active user session.
+
 ---
 
 ## 💬 Real-Time Chat & Seen Tracking
@@ -335,6 +342,10 @@ npm run dev
 - `PUT /users/profile` — Update profile (authenticated)
 - `POST /users/avatar` — Upload avatar (Cloudinary)
 
+### Devices & Push
+- `POST /devices/register` — Register or update a device ID and FCM token for push notifications
+- `POST /devices/remove` — Remove a device registration (e.g. on logout)
+
 ### Posts
 - `POST /posts` — Create post (authenticated)
 - `GET /posts?category={category}&limit={limit}` — Fetch posts with filtering
@@ -379,8 +390,9 @@ npm run dev
 |-------|------------|
 | Frontend | Next.js 16, React 19, TanStack Query (React Query), Tailwind CSS v4, Framer Motion, Socket.IO Client |
 | Backend | FastAPI, Motor (async MongoDB), Firebase Admin SDK, Pydantic, python-socketio, google-genai |
-| Database | MongoDB Atlas (collections: users, posts, post_likes, comments, comment_likes, peers, peer_requests, conversations, messages, notifications) |
+| Database | MongoDB Atlas (collections: users, posts, post_likes, comments, comment_likes, peers, peer_requests, conversations, messages, notifications, user_devices) |
 | Auth | Firebase Authentication (Google, GitHub, Email/Password) |
+| Push | Firebase Cloud Messaging (FCM), Service Worker Web Push |
 | Storage | Cloudinary (media and avatars) |
 | Encryption | Fernet (OAuth token encryption) |
 | Deployment Ready | CORS configured, environment-based configuration, proper error handling |
