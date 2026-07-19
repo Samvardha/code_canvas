@@ -20,6 +20,7 @@ import {
   linkWithPopup,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { removeDevice } from "@/lib/api/devices";
 
 interface AuthContextType {
   user: User | null;
@@ -249,6 +250,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUserProfile]);
 
   const logout = React.useCallback(async () => {
+    try {
+      const deviceId = localStorage.getItem("device_id");
+      if (auth.currentUser && deviceId) {
+        const token = await auth.currentUser.getIdToken();
+        await removeDevice(token, deviceId).catch(console.error);
+      }
+    } catch (e) {
+      console.error("Failed to remove device on logout", e);
+    }
     await signOut(auth);
     setBackendUid(null);
     setUserProfile(null);

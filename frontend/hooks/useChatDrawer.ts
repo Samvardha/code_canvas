@@ -27,7 +27,7 @@ export function useChatDrawer({
   onBackToList,
 }: UseChatDrawerProps) {
   const { user, userProfile } = useAuth();
-  const { socketRef, getSocket } = useSocket();
+  const { socketRef, getSocket, updatePresence } = useSocket();
   const currentUid = userProfile?._id;
 
   // ── State ─────────────────────────────────────────────────
@@ -48,6 +48,19 @@ export function useChatDrawer({
   const [isTyping, setIsTyping] = useState<Record<string, boolean>>({});
   const [focusedMessageId, setFocusedMessageId] = useState<string | null>(null);
   const typingTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
+
+  // ── Presence Tracking ─────────────────────────────────────
+  useEffect(() => {
+    if (isOpen) {
+      if (view === "chat" && activeConversation) {
+        updatePresence("chat", activeConversation.id);
+      } else {
+        updatePresence("chat_list", null);
+      }
+    } else {
+      updatePresence(null, null);
+    }
+  }, [isOpen, view, activeConversation, updatePresence]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);

@@ -4,6 +4,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import QueryProvider from "@/providers/QueryProvider";
 import { NavbarWrapper } from "@/components/NavbarWrapper";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import PushNotificationManager from "@/components/PushNotificationManager";
 import "./globals.css";
 
 const inter = Inter({
@@ -50,6 +51,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           <QueryProvider>
+            <PushNotificationManager />
             <NavbarWrapper>{children}</NavbarWrapper>
           </QueryProvider>
         </AuthProvider>
