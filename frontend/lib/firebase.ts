@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
+import { getMessaging, getToken, Messaging } from "firebase/messaging";
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -18,4 +19,17 @@ if (typeof window !== "undefined") {
     auth = getAuth(app);
 }
 
-export { auth };
+/**
+ * Lazily retrieve the FCM Messaging instance (client-side only).
+ */
+function getFirebaseMessaging(): Messaging | null {
+    if (typeof window === "undefined") return null;
+    try {
+        return getMessaging(app);
+    } catch {
+        return null;
+    }
+}
+
+export { auth, app, getFirebaseMessaging, getToken };
+

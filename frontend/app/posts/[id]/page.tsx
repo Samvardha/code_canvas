@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSocket } from "@/hooks/useSocket";
 import { getPost } from "@/lib/api/posts";
 import { PostCard } from "@/components/PostCard";
 import { PostCardSkeleton } from "@/components/PostCardSkeleton";
@@ -16,8 +17,16 @@ export default function SinglePostPage() {
   const router = useRouter();
   const params = useParams();
   const { user, loading: authLoading } = useAuth();
+  const { updatePresence } = useSocket();
 
   const postId = params.id as string;
+
+  useEffect(() => {
+    updatePresence("post", postId);
+    return () => {
+      updatePresence(null);
+    };
+  }, [updatePresence, postId]);
 
   const getToken = async () => {
     if (!user) return null;

@@ -15,6 +15,7 @@ import {
 import SideDrawer from "./SideDrawer";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useSocket } from "@/hooks/useSocket";
 import { Notification } from "@/lib/api/notifications";
 import { formatDistanceToNow } from "date-fns";
 import Toast from "./Toast";
@@ -147,6 +148,16 @@ export default function NotificationDrawer({
   onClose,
 }: NotificationDrawerProps) {
   const router = useRouter();
+  const { updatePresence } = useSocket();
+
+  useEffect(() => {
+    if (isOpen) {
+      updatePresence("notifications");
+    } else {
+      updatePresence(null);
+    }
+  }, [isOpen, updatePresence]);
+
   const {
     notifications,
     unreadCount,

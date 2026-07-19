@@ -14,6 +14,7 @@ from routes.health import router as health_router
 from routes.ai import router as ai_router
 from routes.conversations import router as conversations_router
 from routes.notifications import router as notifications_router
+from routes.devices import router as devices_router
 
 # [ SOCKET HANDLER IMPORTS ] ───────────────────────────────────────────────────
 from socket_handlers.chat import register_chat_handlers
@@ -79,6 +80,7 @@ def create_fastapi_app(allowed_origins: list) -> FastAPI:
     app.include_router(ai_router)
     app.include_router(conversations_router)
     app.include_router(notifications_router)
+    app.include_router(devices_router)
 
     return app
 
@@ -104,6 +106,10 @@ def create_socket_app(allowed_origins: list, fastapi_app: FastAPI):
     from services.notification import set_sio
     set_sio(sio)
 
-    # 3. Combined Network Stack Generation
+    # 3. Inject Socket.IO reference into the push notification service
+    from services.push_notifications import set_push_sio
+    set_push_sio(sio)
+
+    # 4. Combined Network Stack Generation
     combined_app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app)
     return combined_app, sio

@@ -65,6 +65,11 @@ async def get_notifications_collection():
     return db.get_collection("notifications")
 
 
+async def get_user_devices_collection():
+    """Access point for User Device Registrations (FCM push tokens)."""
+    return db.get_collection("user_devices")
+
+
 # [ INDEXING CORE ] ───────────────────────────────────────────────────────────
 
 async def ensure_indexes():
@@ -136,6 +141,12 @@ async def ensure_indexes():
         notifications = await get_notifications_collection()
         await notifications.create_index([("recipient_id", 1), ("created_at", -1)], background=True)
         await notifications.create_index([("recipient_id", 1), ("is_read", 1)], background=True)
+
+        # 7. User Device Indexes (Push Notifications)
+        user_devices = await get_user_devices_collection()
+        await user_devices.create_index("user_id", background=True)
+        await user_devices.create_index("device_id", unique=True, background=True)
+        await user_devices.create_index("token", background=True)
 
         print("Successfully ensured database indexes.")
     except Exception as e:

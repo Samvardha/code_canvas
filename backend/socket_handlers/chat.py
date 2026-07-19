@@ -5,6 +5,9 @@ from bson import ObjectId
 from typing import Dict, Tuple
 from utils.database import get_conversations_collection
 from services.chat import ChatService
+from services.push_notifications import PushNotificationService
+from services.user import UserService
+from utils.push_helpers import build_message_push_body, build_message_push_route
 
 # [ CONFIGURATION ] ────────────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
@@ -110,6 +113,26 @@ def register_chat_handlers(sio: socketio.AsyncServer):
                 await sio.emit("new_message", message_doc, room=p_uid, skip_sid=sid)
         
         logger.debug(f"Signal broadcast: {uid} in channel {conversation_id}")
+        
+        # 5. Push notification for the receiver (presence-aware)
+        if conv:
+            for p_uid in conv.get("participants", []):
+                if p_uid != uid:
+                    try:                        
+                        profiles = await UserService.fetch_chat_profiles([uid])
+                        sender_name = profiles[0].get("username", "Someone") if profiles else "Someone"
+                        
+                        await PushNotificationService.send_push_notification(
+                            user_id=p_uid,
+                            title=sender_name,
+                            body=build_message_push_body(text),
+                            data={"route": build_message_push_route(uid)},
+                            skip_screen="chat",
+                            skip_entity_id=conversation_id,
+                        )
+                    except Exception:
+                        logger.debug("Chat push delivery failed (non-critical)", exc_info=True)
+
         return {
             "status": "ok", 
             "message": message_doc,

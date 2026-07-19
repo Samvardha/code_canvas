@@ -34,9 +34,11 @@ export function useSocket() {
           globalSocket = null;
         }
 
+        const deviceId = typeof window !== "undefined" ? localStorage.getItem("device_id") || undefined : undefined;
+
         console.log("[Socket] Initializing connection to:", BACKEND_URL);
         const socket = io(BACKEND_URL, {
-          auth: { token },
+          auth: { token, device_id: deviceId },
           transports: ["websocket", "polling"],
           reconnection: true,
           reconnectionAttempts: 10,
@@ -92,5 +94,12 @@ export function useSocket() {
     return connectAttempt;
   }, [user]);
 
-  return { socketRef, getSocket };
+  const updatePresence = useCallback(async (activeScreen: string | null, entityId: string | null = null) => {
+    const socket = await getSocket();
+    if (socket && socket.connected) {
+      socket.emit("update_presence", { activeScreen, entityId });
+    }
+  }, [getSocket]);
+
+  return { socketRef, getSocket, updatePresence };
 }

@@ -4,6 +4,8 @@ from typing import Optional, Dict, Any, List
 from bson import ObjectId
 from services.user import UserService
 from utils.database import get_notifications_collection
+from services.push_notifications import PushNotificationService
+from utils.push_helpers import build_push_body, build_push_route
 
 # [ CONFIGURATION ] ────────────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
@@ -77,22 +79,48 @@ class NotificationService:
 
             logger.info(f"Notification created: {type} | {sender_id} -> {recipient_id}")
 
+            profiles = await UserService.fetch_chat_profiles([sender_id])
+            sender_username = (
+                profiles[0].get("username", sender_id) if profiles else sender_id
+            )
+
             # 3. Real-time emission to the recipient's Socket.IO room
             if _sio:
                 socket_payload_serializable: Dict[str, Any] = dict(notification_doc)
                 dt = socket_payload_serializable.get("created_at")
                 if isinstance(dt, datetime):
                     socket_payload_serializable["created_at"] = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-                
-                # Fetch dynamically for socket payload
-                profiles = await UserService.fetch_chat_profiles([sender_id])
-                if profiles:
-                    socket_payload_serializable["sender_username"] = profiles[0].get("username", sender_id)
-                else:
-                    socket_payload_serializable["sender_username"] = sender_id
-                
+                socket_payload_serializable["sender_username"] = sender_username
+
                 await _sio.emit("new_notification", socket_payload_serializable, room=recipient_id)
                 logger.debug(f"Notification emitted to room: {recipient_id}")
+
+            # 4. Push notification to inactive devices
+            try:
+                push_title = "Tech Connect"
+                push_body = build_push_body(sender_username, type, entity)
+                push_data = {"route": build_push_route(type, entity, sender_username)}
+
+                # Determine skip criteria based on notification type
+                skip_screen = None
+                skip_entity_id = None
+                if type in ("like", "comment", "comment_like", "comment_reply"):
+                    skip_screen = "post"
+                    skip_entity_id = str(entity.get("id", ""))
+                elif type == "message":
+                    skip_screen = "chat"
+                    skip_entity_id = str(entity.get("id", ""))
+
+                await PushNotificationService.send_push_notification(
+                    user_id=recipient_id,
+                    title=push_title,
+                    body=push_body,
+                    data=push_data,
+                    skip_screen=skip_screen,
+                    skip_entity_id=skip_entity_id,
+                )
+            except Exception:
+                logger.debug("Push delivery failed (non-critical)", exc_info=True)
 
             return notification_doc
 
