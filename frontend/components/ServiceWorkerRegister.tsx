@@ -32,7 +32,20 @@ export default function ServiceWorkerRegister() {
       .then(() =>
         navigator.serviceWorker.register(`/firebase-messaging-sw.js?${configParams}`, { scope: "/" })
       )
-      .then((reg) => console.log("[SW] Registered:", reg.scope))
+      .then((reg) => {
+        console.log("[SW] Registered:", reg.scope);
+
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener("statechange", () => {
+              if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                window.dispatchEvent(new CustomEvent("sw-update-available"));
+              }
+            });
+          }
+        });
+      })
       .catch((err) => console.error("[SW] Registration failed:", err));
   }, []);
 
