@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFirebaseMessaging, getToken } from "@/lib/firebase";
@@ -58,9 +58,66 @@ export function usePushNotifications() {
   const { user } = useAuth();
   const router = useRouter();
   const registeringRef = useRef(false);
+  const [permission, setPermission] = useState<NotificationPermission>("default");
 
   useEffect(() => {
-    if (!user) return;
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPermission(Notification.permission);
+    }
+  }, []);
+
+  const registerAndSubscribe = async () => {
+    if (!user || registeringRef.current) return;
+    registeringRef.current = true;
+    try {
+      const messaging = getFirebaseMessaging();
+      if (!messaging) return;
+
+      if (!VALID_KEY) {
+        console.warn("Push notifications disabled: NEXT_PUBLIC_FIREBASE_VALID_KEY is not set.");
+        return;
+      }
+
+      let deviceId = localStorage.getItem("device_id");
+      if (!deviceId) {
+        deviceId = crypto.randomUUID();
+        localStorage.setItem("device_id", deviceId);
+      }
+
+      const requestStatus = await Notification.requestPermission();
+      setPermission(requestStatus);
+      if (requestStatus !== "granted") {
+        console.log("Push notifications permission denied.");
+        return;
+      }
+
+      const swRegistration = await getMessagingServiceWorker();
+      if (!swRegistration) {
+        console.warn("Service worker unavailable; push registration skipped.");
+        return;
+      }
+
+      await navigator.serviceWorker.ready;
+
+      const fcmToken = await getToken(messaging, {
+        vapidKey: VALID_KEY,
+        serviceWorkerRegistration: swRegistration,
+      });
+
+      if (fcmToken && user) {
+        const token = await user.getIdToken();
+        await registerDevice(token, deviceId, fcmToken);
+        localStorage.setItem("fcm_token", fcmToken);
+      }
+    } catch (error) {
+      console.error("Failed to initialize push notifications:", error);
+    } finally {
+      registeringRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    if (!user || permission !== "granted") return;
 
     let mounted = true;
     let removeVisibilityListener: (() => void) | null = null;
@@ -72,10 +129,7 @@ export function usePushNotifications() {
         const messaging = getFirebaseMessaging();
         if (!messaging) return;
 
-        if (!VALID_KEY) {
-          console.warn("Push notifications disabled: NEXT_PUBLIC_FIREBASE_VALID_KEY is not set.");
-          return;
-        }
+        if (!VALID_KEY) return;
 
         let deviceId = localStorage.getItem("device_id");
         if (!deviceId) {
@@ -83,17 +137,8 @@ export function usePushNotifications() {
           localStorage.setItem("device_id", deviceId);
         }
 
-        const permission = await Notification.requestPermission();
-        if (permission !== "granted") {
-          console.log("Push notifications permission denied.");
-          return;
-        }
-
         const swRegistration = await getMessagingServiceWorker();
-        if (!swRegistration) {
-          console.warn("Service worker unavailable; push registration skipped.");
-          return;
-        }
+        if (!swRegistration) return;
 
         await navigator.serviceWorker.ready;
 
@@ -139,7 +184,7 @@ export function usePushNotifications() {
           document.removeEventListener("visibilitychange", onVisibilityChange);
         };
       } catch (error) {
-        console.error("Failed to initialize push notifications:", error);
+        console.warn("Failed to run background token check:", error);
       } finally {
         if (mounted) {
           registeringRef.current = false;
@@ -153,7 +198,7 @@ export function usePushNotifications() {
       mounted = false;
       removeVisibilityListener?.();
     };
-  }, [user]);
+  }, [user, permission]);
 
   useEffect(() => {
     const messaging = getFirebaseMessaging();
@@ -168,4 +213,10 @@ export function usePushNotifications() {
       console.warn("Could not attach onMessage listener", e);
     }
   }, [router]);
+
+  return {
+    permission,
+    isSupported: typeof window !== "undefined" && "Notification" in window,
+    requestSubscription: registerAndSubscribe,
+  };
 }
