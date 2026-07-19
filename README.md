@@ -285,10 +285,11 @@ npm run dev
 - **Frontend Hook** — `useNotifications.ts` manages the TanStack cache, optimistic rollbacks, unread counts, and deduplicated socket subscriptions.
 - **Visual Feedback** — Monospace alert styling with timestamp formatting, responsive routing, and high-contrast "seen" states.
 
-### FCM Push Notifications
+### PWA & FCM Push Notifications
 - **System-Level Alerts** — Real-time background notifications delivered directly to the user's OS via Firebase Cloud Messaging (FCM).
 - **Dynamic SW Configuration** — The Service Worker is initialized with parameters passed via URL query parameters, ensuring no hardcoded credentials exist in Git and enabling environment-specific configs (dev/prod).
-- **iOS Safari Compatibility** — Designed around WebKit security constraints. Users are prompted with a premium, animated glassmorphic banner. Tapping the "Enable" button provides the required explicit user gesture for `Notification.requestPermission()`.
+- **iOS Safari Compatibility** — Designed around WebKit security constraints. Users are prompted with a premium, glassmorphic banner in the `<PWAManager />` component. Tapping the "Enable" button provides the required explicit user gesture for `Notification.requestPermission()`.
+- **PWA Update Prompt** — Automatically detects when a new Service Worker is compiled and installed (by checking the versioned `CACHE_NAME` in `firebase-messaging-sw.js`). Instantly overlays a centered, blocking modal asking the user to reload the page to apply updates.
 - **Token Registration** — Devices and FCM tokens are registered atomically in the `user_devices` collection associated with the active user session.
 
 ---
