@@ -14,7 +14,9 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-const CACHE_NAME = "tech-connect-v1";
+// Needs to  be updated while code push for PWA updates
+const CACHE_NAME = "tech-connect-v1.1.0";
+
 const STATIC_ASSETS = ["/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {

@@ -6,8 +6,8 @@ import { NavbarWrapper } from "@/components/NavbarWrapper";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import PWAManager from "@/components/PWAManager";
 import { GoogleAnalytics } from "@next/third-parties/google";
-import PushNotificationManager from "@/components/PushNotificationManager";
 import "./globals.css";
 
 const inter = Inter({
@@ -58,7 +58,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           <QueryProvider>
-            <PushNotificationManager />
+            <PWAManager />
             <NavbarWrapper>{children}</NavbarWrapper>
           </QueryProvider>
         </AuthProvider>
